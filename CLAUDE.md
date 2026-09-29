@@ -56,4 +56,5 @@ com.salonapp
 ```
 
 - 헬스체크: http://localhost:8080/actuator/health
+- API 문서(Swagger UI): http://localhost:8080/swagger-ui.html
 - 로컬 DB 접속: `localhost:5432`, db/user/password 모두 `salon`

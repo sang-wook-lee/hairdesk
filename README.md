@@ -29,4 +29,7 @@ cd backend
 ./gradlew bootRun
 ```
 
-PostgreSQL 컨테이너가 자동으로 뜨고, http://localhost:8080/actuator/health 에서 상태를 확인할 수 있다.
+PostgreSQL 컨테이너가 자동으로 뜬다.
+
+- API 문서(Swagger UI): http://localhost:8080/swagger-ui.html
+- 헬스체크: http://localhost:8080/actuator/health

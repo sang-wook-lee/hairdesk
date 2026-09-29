@@ -3,6 +3,8 @@ package com.salonapp.menu.controller;
 import com.salonapp.menu.dto.MenuRequest;
 import com.salonapp.menu.dto.MenuResponse;
 import com.salonapp.menu.service.TreatmentMenuService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -28,6 +30,7 @@ import java.util.List;
  * POST /api/menus/{id}/deactivate  판매 중지 (DELETE 대신. 과거 매출 보존)
  * POST /api/menus/{id}/activate    판매 재개
  */
+@Tag(name = "시술 메뉴", description = "커트·펌·염색 등 시술 메뉴와 가격 관리")
 @RestController
 @RequestMapping("/api/menus")
 @RequiredArgsConstructor
@@ -35,33 +38,39 @@ public class TreatmentMenuController {
 
     private final TreatmentMenuService menuService;
 
+    @Operation(summary = "메뉴 등록")
     @PostMapping
     public ResponseEntity<MenuResponse> create(@Valid @RequestBody MenuRequest request) {
         MenuResponse created = menuService.create(request);
         return ResponseEntity.created(URI.create("/api/menus/" + created.id())).body(created);
     }
 
+    @Operation(summary = "메뉴 목록", description = "표시 순서대로 정렬. 기본은 판매 중인 메뉴만, includeInactive=true면 전체")
     @GetMapping
     public List<MenuResponse> findAll(@RequestParam(defaultValue = "false") boolean includeInactive) {
         return menuService.findAll(includeInactive);
     }
 
+    @Operation(summary = "메뉴 단건 조회")
     @GetMapping("/{id}")
     public MenuResponse findById(@PathVariable Long id) {
         return menuService.findById(id);
     }
 
+    @Operation(summary = "메뉴 수정")
     @PutMapping("/{id}")
     public MenuResponse update(@PathVariable Long id, @Valid @RequestBody MenuRequest request) {
         return menuService.update(id, request);
     }
 
+    @Operation(summary = "판매 중지", description = "삭제 대신 사용. 과거 매출 기록 보존")
     @PostMapping("/{id}/deactivate")
     public ResponseEntity<Void> deactivate(@PathVariable Long id) {
         menuService.deactivate(id);
         return ResponseEntity.noContent().build();
     }
 
+    @Operation(summary = "판매 재개")
     @PostMapping("/{id}/activate")
     public ResponseEntity<Void> activate(@PathVariable Long id) {
         menuService.activate(id);
