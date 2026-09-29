@@ -1,5 +1,6 @@
 package com.salonapp.common.exception;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -21,6 +22,21 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(NotFoundException.class)
     public ProblemDetail handleNotFound(NotFoundException e) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, e.getMessage());
+    }
+
+    @ExceptionHandler(ConflictException.class)
+    public ProblemDetail handleConflict(ConflictException e) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, e.getMessage());
+    }
+
+    /**
+     * DB 제약조건 위반 (UNIQUE 등).
+     * 서비스에서 미리 중복 체크를 하지만, 거의 동시에 들어온 두 요청은 둘 다 체크를 통과할 수 있다.
+     * 그때 최종적으로 DB 제약이 막아주고, 여기서 409로 바꿔 응답한다.
+     */
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ProblemDetail handleDataIntegrityViolation(DataIntegrityViolationException e) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, "이미 존재하거나 다른 데이터와 충돌합니다.");
     }
 
     /** 엔티티의 규칙 검증에 걸린 경우 (예: 음수 가격) */
