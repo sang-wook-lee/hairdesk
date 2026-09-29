@@ -1,0 +1,20 @@
+# 로컬 개발용 PostgreSQL.
+# ./gradlew bootRun 하면 Spring Boot가 이 파일을 보고 컨테이너를 자동으로 띄운다.
+services:
+  postgres:
+    # latest 대신 버전 고정: 언젠가 메이저 버전이 바뀌어 갑자기 깨지는 일을 막는다.
+    # 테스트(TestcontainersConfiguration)도 같은 버전을 쓴다.
+    image: 'postgres:17'
+    environment:
+      - 'POSTGRES_DB=salon'
+      - 'POSTGRES_USER=salon'
+      - 'POSTGRES_PASSWORD=salon'  # 로컬 전용 값. 운영 비밀번호는 절대 여기에 쓰지 않는다.
+      - 'TZ=Asia/Seoul'
+    ports:
+      # 포트 고정: DBeaver 같은 DB 툴로 localhost:5432에 붙어서 데이터를 직접 볼 수 있다.
+      - '5432:5432'
+    volumes:
+      - salon-pgdata:/var/lib/postgresql/data
+
+volumes:
+  salon-pgdata:

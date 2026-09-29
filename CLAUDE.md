@@ -41,6 +41,19 @@ com.salonapp
 - 시간은 `Asia/Seoul` 기준, DB에는 `timestamptz`로 저장.
 - 비밀값(DB 비밀번호 등)은 커밋하지 않는다. `.env` 또는 `application-local.yml` 사용.
 
-## 자주 쓰는 명령
+## 저장소 구조
 
-(Spring Boot 프로젝트 생성 후 채울 것)
+- `backend/` Spring Boot API (Spring Boot 4.1, Gradle 9)
+- `docs/adr/` 설계 결정 기록
+- (예정) `app/` Flutter 클라이언트
+
+## 자주 쓰는 명령 (`backend/`에서 실행, Docker Desktop 실행 필요)
+
+```bash
+./gradlew bootRun   # 서버 실행. compose.yaml의 PostgreSQL을 자동으로 띄움
+./gradlew test      # 테스트. Testcontainers가 테스트용 PostgreSQL을 따로 띄움
+./gradlew build     # 컴파일 + 테스트 + jar 생성
+```
+
+- 헬스체크: http://localhost:8080/actuator/health
+- 로컬 DB 접속: `localhost:5432`, db/user/password 모두 `salon`

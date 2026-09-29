@@ -22,4 +22,11 @@ Java 21 · Spring Boot · JPA · PostgreSQL · Flyway · Testcontainers · Docke
 
 ## 실행 방법
 
-(Spring Boot 프로젝트 생성 후 작성)
+필요: JDK 21, Docker Desktop
+
+```bash
+cd backend
+./gradlew bootRun
+```
+
+PostgreSQL 컨테이너가 자동으로 뜨고, http://localhost:8080/actuator/health 에서 상태를 확인할 수 있다.

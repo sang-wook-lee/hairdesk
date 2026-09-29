@@ -1,0 +1,24 @@
+spring:
+  application:
+    name: salon-app
+
+  jpa:
+    # OSIV 끔: 트랜잭션이 끝난 뒤(컨트롤러/뷰)에 지연 로딩 쿼리가 나가지 않게 한다.
+    # 커넥션을 요청 내내 붙잡지 않고, "쿼리는 서비스 계층에서만"이라는 규칙을 강제한다.
+    open-in-view: false
+    hibernate:
+      # 스키마는 Flyway만 바꾼다. Hibernate는 엔티티와 테이블이 맞는지 검사만 한다.
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: Asia/Seoul
+
+  flyway:
+    locations: classpath:db/migration
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info
