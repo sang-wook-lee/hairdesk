@@ -38,3 +38,4 @@
 | [0002](0002-customer-identity-and-privacy.md) | 고객 식별 방식과 개인정보 최소 수집 | 승인 |
 | [0003](0003-reservation-overlap-prevention.md) | 예약 시간 겹침 방지는 DB 제약으로 | 승인 |
 | [0004](0004-sales-records.md) | 매출은 스냅샷을 가진 장부로 기록한다 | 승인 |
+| [0005](0005-statistics.md) | 통계는 실시간 집계와 명시적 정의로 | 승인 |
