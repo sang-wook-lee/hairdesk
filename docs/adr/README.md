@@ -36,3 +36,4 @@
 |---|---|---|
 | [0001](0001-tech-stack.md) | 기술 스택 선택 | 승인 |
 | [0002](0002-customer-identity-and-privacy.md) | 고객 식별 방식과 개인정보 최소 수집 | 승인 |
+| [0003](0003-reservation-overlap-prevention.md) | 예약 시간 겹침 방지는 DB 제약으로 | 승인 |

@@ -39,6 +39,12 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, "이미 존재하거나 다른 데이터와 충돌합니다.");
     }
 
+    /** 지금 상태에서는 할 수 없는 동작 (예: 이미 취소된 예약을 완료 처리) */
+    @ExceptionHandler(IllegalStateException.class)
+    public ProblemDetail handleIllegalState(IllegalStateException e) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, e.getMessage());
+    }
+
     /** 엔티티의 규칙 검증에 걸린 경우 (예: 음수 가격) */
     @ExceptionHandler(IllegalArgumentException.class)
     public ProblemDetail handleIllegalArgument(IllegalArgumentException e) {
