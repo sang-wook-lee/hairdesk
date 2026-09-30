@@ -2,6 +2,7 @@ package com.salonapp.reservation.service;
 
 import com.salonapp.common.exception.ConflictException;
 import com.salonapp.common.exception.NotFoundException;
+import com.salonapp.common.time.SeoulDates;
 import com.salonapp.customer.domain.Customer;
 import com.salonapp.customer.repository.CustomerRepository;
 import com.salonapp.menu.domain.TreatmentMenu;
@@ -19,7 +20,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.util.List;
 import java.util.Set;
 
@@ -28,7 +28,6 @@ import java.util.Set;
 @Transactional(readOnly = true)
 public class ReservationService {
 
-    private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
     /** 시간을 차지하는 상태 (DB 제약 조건과 같아야 한다 — V4 마이그레이션, ADR 0003) */
     private static final Set<ReservationStatus> OCCUPYING = Set.of(ReservationStatus.BOOKED, ReservationStatus.COMPLETED);
 
@@ -61,9 +60,7 @@ public class ReservationService {
         if (to.isBefore(from)) {
             throw new IllegalArgumentException("종료 날짜가 시작 날짜보다 빠릅니다.");
         }
-        Instant start = from.atStartOfDay(SEOUL).toInstant();
-        Instant end = to.plusDays(1).atStartOfDay(SEOUL).toInstant();   // to 당일 24시까지 포함
-        return reservationRepository.findStartingBetween(start, end).stream()
+        return reservationRepository.findStartingBetween(SeoulDates.startOfDay(from), SeoulDates.endOfDayExclusive(to)).stream()
                 .map(ReservationResponse::from)
                 .toList();
     }
