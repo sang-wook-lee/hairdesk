@@ -246,9 +246,13 @@ Reservation reservationOf(
 
 class FakeSaleRepository implements SaleRepository {
   /// [reservations]를 주면 결제 등록 때 그 예약을 완료 처리한다 (서버의 "결제 = 완료" 동작).
-  FakeSaleRepository({this.reservations});
+  FakeSaleRepository({this.reservations, this.ledger = const []});
 
   final FakeReservationRepository? reservations;
+
+  /// 매출 요약 테스트용 장부: (날짜, 금액) 목록. 서울 기준 날짜로 쓴다.
+  final List<({DateTime date, int amount})> ledger;
+  Object? failOnSummary;
   final List<Map<String, Object?>> created = [];
   Object? failOnCreate;
 
@@ -263,5 +267,15 @@ class FakeSaleRepository implements SaleRepository {
     created.add({'reservationId': reservationId, 'amount': amount, 'method': method, 'memo': memo});
     reservations?.markCompleted(reservationId);
     return Sale(id: created.length, price: amount, amount: amount, paymentMethod: method);
+  }
+
+  @override
+  Future<SalesSummary> summarize(DateTime from, DateTime to) async {
+    if (failOnSummary != null) throw failOnSummary!;
+    final inRange = ledger.where((s) => !s.date.isBefore(from) && !s.date.isAfter(to));
+    return SalesSummary(
+      totalAmount: inRange.fold(0, (sum, s) => sum + s.amount),
+      count: inRange.length,
+    );
   }
 }

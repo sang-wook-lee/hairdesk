@@ -29,3 +29,13 @@ String formatDuration(int minutes) {
   if (rest == 0) return '$hours시간';
   return '$hours시간 $rest분';
 }
+
+/// 예약이 언제인지 한마디로: "진행 중", "30분 뒤", "1시간 20분 뒤", "시간이 지났어요".
+/// 세 시각 모두 절대 시각이라 시간대와 무관하게 계산된다.
+String formatCountdown({required DateTime start, required DateTime end, required DateTime now}) {
+  if (!now.isBefore(end)) return '시간이 지났어요';
+  if (!now.isBefore(start)) return '진행 중';
+  final minutes = start.difference(now).inMinutes;
+  if (minutes < 1) return '곧 시작';
+  return '${formatDuration(minutes)} 뒤';
+}

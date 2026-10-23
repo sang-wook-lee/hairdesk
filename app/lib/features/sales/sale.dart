@@ -41,6 +41,21 @@ class Sale {
   }
 }
 
+/// 기간 매출 요약: 총액과 건수. (서버의 /api/sales/summary에서 이 두 값만 쓴다)
+class SalesSummary {
+  const SalesSummary({required this.totalAmount, required this.count});
+
+  final int totalAmount; // 원
+  final int count; // 결제 건수
+
+  factory SalesSummary.fromJson(Map<String, dynamic> json) {
+    return SalesSummary(
+      totalAmount: json['totalAmount'] as int,
+      count: json['count'] as int,
+    );
+  }
+}
+
 /// 결제창에서 입력한 값. 결제 대화상자가 이것을 돌려주고, 저장소가 서버로 보낸다.
 class PaymentInput {
   const PaymentInput({required this.amount, required this.method, this.memo});

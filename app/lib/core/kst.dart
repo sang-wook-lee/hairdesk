@@ -7,9 +7,10 @@
 const Duration _kstOffset = Duration(hours: 9);
 
 /// 서울 기준 오늘 날짜 (시·분 없이 날짜만).
-DateTime kstToday() {
-  final now = DateTime.now().toUtc().add(_kstOffset);
-  return DateTime(now.year, now.month, now.day);
+/// [now]를 주면 그 순간을 "지금"으로 본다. 테스트에서 시계를 고정하려고 열어 둔 것이다.
+DateTime kstToday({DateTime? now}) {
+  final k = (now ?? DateTime.now()).toUtc().add(_kstOffset);
+  return DateTime(k.year, k.month, k.day);
 }
 
 /// 절대 시각 → 서울 벽시계 시각. 결과의 year/hour 같은 필드가 서울 기준 값이다.

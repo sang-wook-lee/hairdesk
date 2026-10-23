@@ -25,6 +25,17 @@ void main() {
     });
   });
 
+  group('서울 기준 오늘', () {
+    test('UTC로는 전날이어도 서울 날짜로 오늘을 계산한다', () {
+      // UTC 9/30 15:30 = 서울 10/1 00:30
+      expect(formatIsoDate(kstToday(now: DateTime.parse('2026-09-30T15:30:00Z'))), '2026-10-01');
+    });
+
+    test('서울 23:59는 아직 그날이다', () {
+      expect(formatIsoDate(kstToday(now: DateTime.parse('2026-10-01T23:59:00+09:00'))), '2026-10-01');
+    });
+  });
+
   group('날짜 글자', () {
     test('서버로 보낼 날짜는 0을 채운 yyyy-MM-dd', () {
       expect(formatIsoDate(DateTime(2026, 1, 5)), '2026-01-05');

@@ -76,4 +76,24 @@ void main() {
         ['POST /api/reservations/3/cancel', 'POST /api/reservations/4/no-show']);
     expect(sent.first.bodyBytes, isEmpty);
   });
+
+  test('기간 매출 요약: 날짜 범위를 보내고 총액과 건수를 읽는다', () async {
+    late Uri requested;
+    final client = MockClient((request) async {
+      requested = request.url;
+      // 서버는 결제수단별 내역(byMethod)도 주지만 앱은 총액과 건수만 쓴다. 모르는 필드는 무시해야 한다.
+      return http.Response.bytes(
+        utf8.encode('{"totalAmount":88000,"count":3,"byMethod":[{"method":"CARD","totalAmount":88000,"count":3}]}'),
+        200,
+      );
+    });
+
+    final summary = await SaleRepository(ApiClient(httpClient: client))
+        .summarize(DateTime(2026, 10, 1), DateTime(2026, 10, 31));
+
+    expect(requested.path, '/api/sales/summary');
+    expect(requested.queryParameters, {'from': '2026-10-01', 'to': '2026-10-31'});
+    expect(summary.totalAmount, 88000);
+    expect(summary.count, 3);
+  });
 }

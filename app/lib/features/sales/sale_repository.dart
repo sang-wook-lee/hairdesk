@@ -1,4 +1,5 @@
 import '../../core/api_client.dart';
+import '../../core/kst.dart';
 import 'sale.dart';
 
 /// 매출(결제) 데이터를 서버와 주고받는 곳.
@@ -23,5 +24,14 @@ class SaleRepository {
       'memo': ?memo,
     });
     return Sale.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// [from]~[to] 날짜(양쪽 포함, 서울 기준)의 총 매출과 건수. 매출이 없는 기간은 0원 0건이다.
+  Future<SalesSummary> summarize(DateTime from, DateTime to) async {
+    final json = await _api.getJson(
+      '/api/sales/summary',
+      query: {'from': formatIsoDate(from), 'to': formatIsoDate(to)},
+    );
+    return SalesSummary.fromJson(json as Map<String, dynamic>);
   }
 }
