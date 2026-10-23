@@ -41,6 +41,9 @@ class ApiClient {
   /// PUT 요청 (전체 수정).
   Future<dynamic> putJson(String path, {required Object body}) => _send('PUT', path, body);
 
+  /// PATCH 요청 (일부만 수정). 예: 예약 시간만 바꾸기.
+  Future<dynamic> patchJson(String path, {required Object body}) => _send('PATCH', path, body);
+
   Future<dynamic> _send(String method, String path, Object? body) async {
     final request = http.Request(method, Uri.parse('$apiBaseUrl$path'));
     if (body != null) {

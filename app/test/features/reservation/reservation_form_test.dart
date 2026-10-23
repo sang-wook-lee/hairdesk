@@ -41,6 +41,7 @@ class _Harness {
         repository: reservations,
         customerRepository: customers,
         menuRepository: menus,
+        saleRepository: FakeSaleRepository(),
         initialDate: DateTime(2026, 10, 1),
       ),
     ));

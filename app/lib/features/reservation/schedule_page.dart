@@ -4,9 +4,11 @@ import '../../core/error_message.dart';
 import '../../core/kst.dart';
 import '../customer/customer_repository.dart';
 import '../menu/menu_repository.dart';
+import '../sales/sale_repository.dart';
 import 'reservation.dart';
 import 'reservation_form_page.dart';
 import 'reservation_repository.dart';
+import 'reservation_sheet.dart';
 
 /// 하루 일정 화면. 날짜를 넘기며 그날의 예약을 시간순으로 본다.
 class SchedulePage extends StatefulWidget {
@@ -15,6 +17,7 @@ class SchedulePage extends StatefulWidget {
     required this.repository,
     required this.customerRepository,
     required this.menuRepository,
+    required this.saleRepository,
     this.initialDate,
   });
 
@@ -23,6 +26,9 @@ class SchedulePage extends StatefulWidget {
   /// 예약 추가 폼이 고객 검색과 메뉴 목록에 쓴다.
   final CustomerRepository customerRepository;
   final MenuRepository menuRepository;
+
+  /// 예약 상세 시트의 "결제하기"가 쓴다.
+  final SaleRepository saleRepository;
 
   /// 처음 보여줄 날짜. 생략하면 오늘(서울 기준). 테스트에서 날짜를 고정하려고 열어 둔다.
   final DateTime? initialDate;
@@ -72,6 +78,21 @@ class _SchedulePageState extends State<SchedulePage> {
       final day = toKst(created.startAt);
       _moveTo(DateTime(day.year, day.month, day.day));
     }
+  }
+
+  /// 예약 상세 시트를 열고, 동작이 성공해서 메시지를 들고 돌아오면 목록을 새로고침하고 알려 준다.
+  Future<void> _openDetail(Reservation reservation) async {
+    final message = await ReservationSheet.show(
+      context,
+      reservation: reservation,
+      reservationRepository: widget.repository,
+      saleRepository: widget.saleRepository,
+      menuRepository: widget.menuRepository,
+    );
+    if (message == null) return; // 그냥 닫음: 바뀐 게 없다
+    _reload();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _pickDate() async {
@@ -126,8 +147,10 @@ class _SchedulePageState extends State<SchedulePage> {
                 }
                 return ListView.builder(
                   itemCount: reservations.length,
-                  itemBuilder: (context, index) =>
-                      _ReservationTile(reservation: reservations[index]),
+                  itemBuilder: (context, index) => _ReservationTile(
+                    reservation: reservations[index],
+                    onTap: () => _openDetail(reservations[index]),
+                  ),
                 );
               },
             ),
@@ -193,9 +216,10 @@ class _DateBar extends StatelessWidget {
 
 /// 예약 한 줄. 취소/노쇼는 흐리게 보여서 "실제로 올 사람"이 한눈에 구분된다.
 class _ReservationTile extends StatelessWidget {
-  const _ReservationTile({required this.reservation});
+  const _ReservationTile({required this.reservation, required this.onTap});
 
   final Reservation reservation;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -217,6 +241,7 @@ class _ReservationTile extends StatelessWidget {
           style: TextStyle(color: textColor)),
       subtitle: r.memo == null ? null : Text(r.memo!),
       trailing: _StatusChip(status: r.status),
+      onTap: onTap,
     );
   }
 }

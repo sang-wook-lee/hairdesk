@@ -26,6 +26,29 @@ class ReservationRepository {
     return Reservation.fromJson(json as Map<String, dynamic>);
   }
 
+  /// 예약 시간 변경. 소요 시간은 그대로이고 시작 시각만 옮긴다. 다른 예약과 겹치면 409.
+  /// "예약" 상태일 때만 가능하다. (이미 완료/취소/노쇼면 409)
+  Future<Reservation> reschedule(int id, DateTime startAt) async {
+    final json = await _api.patchJson(
+      '/api/reservations/$id/time',
+      body: {'startAt': formatKstIso(startAt)},
+    );
+    return Reservation.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// 예약 취소. 취소하면 그 시간에 다시 예약을 받을 수 있다.
+  Future<Reservation> cancel(int id) => _changeStatus(id, 'cancel');
+
+  /// 노쇼 처리. 이것도 그 시간을 다시 비운다.
+  Future<Reservation> markNoShow(int id) => _changeStatus(id, 'no-show');
+
+  // 완료 처리는 따로 없다: 결제(SaleRepository.create)가 예약을 자동으로 완료시킨다.
+
+  Future<Reservation> _changeStatus(int id, String action) async {
+    final json = await _api.postJson('/api/reservations/$id/$action');
+    return Reservation.fromJson(json as Map<String, dynamic>);
+  }
+
   /// [from]~[to] 날짜(양쪽 포함, 서울 기준)에 시작하는 예약을 시간순으로.
   /// 하루만 보려면 from과 to를 같게 준다. 취소된 예약도 포함된다.
   Future<List<Reservation>> fetchBetween(DateTime from, DateTime to) async {

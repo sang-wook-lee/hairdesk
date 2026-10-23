@@ -6,6 +6,7 @@ import 'features/customer/customer_repository.dart';
 import 'features/home/home_shell.dart';
 import 'features/menu/menu_repository.dart';
 import 'features/reservation/reservation_repository.dart';
+import 'features/sales/sale_repository.dart';
 
 /// 앱의 시작점. Dart는 항상 main()부터 실행된다.
 /// 여기서 부품(ApiClient, 저장소)을 한 번 만들어 필요한 화면에 넘겨준다. (ADR 0006)
@@ -15,6 +16,7 @@ void main() {
     menuRepository: MenuRepository(api),
     customerRepository: CustomerRepository(api),
     reservationRepository: ReservationRepository(api),
+    saleRepository: SaleRepository(api),
   ));
 }
 
@@ -25,11 +27,13 @@ class HairdeskApp extends StatelessWidget {
     required this.menuRepository,
     required this.customerRepository,
     required this.reservationRepository,
+    required this.saleRepository,
   });
 
   final MenuRepository menuRepository;
   final CustomerRepository customerRepository;
   final ReservationRepository reservationRepository;
+  final SaleRepository saleRepository;
 
   @override
   Widget build(BuildContext context) {
@@ -52,6 +56,7 @@ class HairdeskApp extends StatelessWidget {
         reservationRepository: reservationRepository,
         customerRepository: customerRepository,
         menuRepository: menuRepository,
+        saleRepository: saleRepository,
       ),
     );
   }

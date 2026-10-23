@@ -4,6 +4,7 @@ import '../customer/customer_repository.dart';
 import '../menu/menu_list_page.dart';
 import '../menu/menu_repository.dart';
 import '../reservation/reservation_repository.dart';
+import '../sales/sale_repository.dart';
 import '../reservation/schedule_page.dart';
 
 /// 앱의 뼈대: 아래 탭으로 화면(일정 / 메뉴)을 오간다. 화면이 늘면 탭도 여기에 추가한다.
@@ -13,11 +14,13 @@ class HomeShell extends StatefulWidget {
     required this.reservationRepository,
     required this.customerRepository,
     required this.menuRepository,
+    required this.saleRepository,
   });
 
   final ReservationRepository reservationRepository;
   final CustomerRepository customerRepository;
   final MenuRepository menuRepository;
+  final SaleRepository saleRepository;
 
   @override
   State<HomeShell> createState() => _HomeShellState();
@@ -38,6 +41,7 @@ class _HomeShellState extends State<HomeShell> {
             repository: widget.reservationRepository,
             customerRepository: widget.customerRepository,
             menuRepository: widget.menuRepository,
+            saleRepository: widget.saleRepository,
           ),
           MenuListPage(repository: widget.menuRepository),
         ],

@@ -18,6 +18,7 @@ Future<FakeReservationRepository> _pump(
       repository: repo,
       customerRepository: FakeCustomerRepository([]),
       menuRepository: FakeMenuRepository([]),
+      saleRepository: FakeSaleRepository(),
       initialDate: date ?? DateTime(2026, 10, 1),
     ),
   ));
@@ -130,6 +131,7 @@ void main() {
         repository: repo,
         customerRepository: FakeCustomerRepository([]),
         menuRepository: FakeMenuRepository([]),
+      saleRepository: FakeSaleRepository(),
         initialDate: DateTime(2026, 10, 1),
       ),
     ));

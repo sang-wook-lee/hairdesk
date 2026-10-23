@@ -5,6 +5,7 @@ import 'package:hairdesk/features/home/home_shell.dart';
 import 'package:hairdesk/features/customer/customer_repository.dart';
 import 'package:hairdesk/features/menu/menu_repository.dart';
 import 'package:hairdesk/features/reservation/reservation_repository.dart';
+import 'package:hairdesk/features/sales/sale_repository.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
@@ -17,6 +18,7 @@ void main() {
         reservationRepository: ReservationRepository(api),
         customerRepository: CustomerRepository(api),
         menuRepository: MenuRepository(api),
+        saleRepository: SaleRepository(api),
       ),
     ));
     await tester.pumpAndSettle();

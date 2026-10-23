@@ -10,6 +10,8 @@ import 'package:hairdesk/features/menu/menu.dart';
 import 'package:hairdesk/features/menu/menu_repository.dart';
 import 'package:hairdesk/features/reservation/reservation.dart';
 import 'package:hairdesk/features/reservation/reservation_repository.dart';
+import 'package:hairdesk/features/sales/sale.dart';
+import 'package:hairdesk/features/sales/sale_repository.dart';
 
 // ---------------------------------------------------------------- 메뉴
 
@@ -124,6 +126,8 @@ class FakeReservationRepository implements ReservationRepository {
   final List<Map<String, Object?>> created = []; // 등록 요청 기록
   ApiException? failWith; // 조회 실패
   Object? failOnCreate; // 등록 실패. ApiException(예: 409)이나 일반 예외(네트워크 오류)
+  Object? failOnChange; // 시간 변경/취소/노쇼 실패
+  final List<String> changes = []; // 상태 변경 요청 기록: "cancel:1", "no-show:2", "reschedule:3:2026-10-01T11:00:00+09:00"
 
   @override
   Future<List<Reservation>> fetchBetween(DateTime from, DateTime to) async {
@@ -134,6 +138,54 @@ class FakeReservationRepository implements ReservationRepository {
       final d = DateTime(day.year, day.month, day.day);
       return !d.isBefore(from) && !d.isAfter(to);
     }).toList();
+  }
+
+  @override
+  Future<Reservation> reschedule(int id, DateTime startAt) async {
+    if (failOnChange != null) throw failOnChange!;
+    final iso = formatKstIso(startAt);
+    changes.add('reschedule:$id:$iso');
+    final newStart = DateTime.parse(iso);
+    return _replace(id, (r) => _copy(r, startAt: newStart, endAt: newStart.add(r.endAt.difference(r.startAt))));
+  }
+
+  @override
+  Future<Reservation> cancel(int id) async {
+    if (failOnChange != null) throw failOnChange!;
+    changes.add('cancel:$id');
+    return _replace(id, (r) => _copy(r, status: ReservationStatus.cancelled));
+  }
+
+  @override
+  Future<Reservation> markNoShow(int id) async {
+    if (failOnChange != null) throw failOnChange!;
+    changes.add('no-show:$id');
+    return _replace(id, (r) => _copy(r, status: ReservationStatus.noShow));
+  }
+
+  /// 결제가 등록되면 서버가 예약을 완료 처리하는 것을 흉내 낸다. (FakeSaleRepository가 부른다)
+  void markCompleted(int id) => _replace(id, (r) => _copy(r, status: ReservationStatus.completed));
+
+  Reservation _replace(int id, Reservation Function(Reservation) change) {
+    final index = reservations.indexWhere((r) => r.id == id);
+    final updated = change(reservations[index]);
+    reservations[index] = updated;
+    return updated;
+  }
+
+  Reservation _copy(Reservation r, {ReservationStatus? status, DateTime? startAt, DateTime? endAt}) {
+    return Reservation(
+      id: r.id,
+      customerId: r.customerId,
+      customerName: r.customerName,
+      customerPhone: r.customerPhone,
+      menuId: r.menuId,
+      menuName: r.menuName,
+      startAt: startAt ?? r.startAt,
+      endAt: endAt ?? r.endAt,
+      status: status ?? r.status,
+      memo: r.memo,
+    );
   }
 
   @override
@@ -188,4 +240,28 @@ Reservation reservationOf(
     status: status,
     memo: memo,
   );
+}
+
+// ---------------------------------------------------------------- 매출
+
+class FakeSaleRepository implements SaleRepository {
+  /// [reservations]를 주면 결제 등록 때 그 예약을 완료 처리한다 (서버의 "결제 = 완료" 동작).
+  FakeSaleRepository({this.reservations});
+
+  final FakeReservationRepository? reservations;
+  final List<Map<String, Object?>> created = [];
+  Object? failOnCreate;
+
+  @override
+  Future<Sale> create({
+    required int reservationId,
+    required int amount,
+    required PaymentMethod method,
+    String? memo,
+  }) async {
+    if (failOnCreate != null) throw failOnCreate!;
+    created.add({'reservationId': reservationId, 'amount': amount, 'method': method, 'memo': memo});
+    reservations?.markCompleted(reservationId);
+    return Sale(id: created.length, price: amount, amount: amount, paymentMethod: method);
+  }
 }
