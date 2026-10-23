@@ -67,6 +67,11 @@ C:\dev\flutter\bin\flutter analyze         # 정적 분석
 - 한글 JSON은 `response.body`가 아니라 `utf8.decode(response.bodyBytes)`로 읽는다 (`ApiClient` 참고).
 - 브라우저에서 API를 부르려면 백엔드 CORS 허용이 필요하다 (`CorsConfig`, localhost만 허용).
 
+개발용 샘플 데이터 (`DevDataSeeder`):
+- `./gradlew bootRun`은 `local` 프로필로 켜지고, **DB가 비어 있으면** 서버가 켜질 때 샘플 데이터(메뉴 8, 고객 12, 오늘 기준 과거 60일~앞으로 7일의 예약·매출)를 자동으로 넣는다.
+- 이미 데이터가 있으면 건너뛴다. 처음부터 다시 채우려면 `backend/`에서 `docker compose down -v`(개발 DB 데이터 전부 삭제) 후 다시 `bootRun`.
+- 테스트와 운영에서는 돌지 않는다. 샘플 내용을 바꾸려면 `backend/src/main/java/com/salonapp/common/dev/DevDataSeeder.java`.
+
 - 헬스체크: http://localhost:8080/actuator/health
 - API 문서(Swagger UI): http://localhost:8080/swagger-ui.html
 - 로컬 DB 접속: `localhost:5432`, db/user/password 모두 `salon`
