@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../customer/customer_repository.dart';
 import '../menu/menu_list_page.dart';
 import '../menu/menu_repository.dart';
 import '../reservation/reservation_repository.dart';
@@ -10,10 +11,12 @@ class HomeShell extends StatefulWidget {
   const HomeShell({
     super.key,
     required this.reservationRepository,
+    required this.customerRepository,
     required this.menuRepository,
   });
 
   final ReservationRepository reservationRepository;
+  final CustomerRepository customerRepository;
   final MenuRepository menuRepository;
 
   @override
@@ -31,7 +34,11 @@ class _HomeShellState extends State<HomeShell> {
       body: IndexedStack(
         index: _index,
         children: [
-          SchedulePage(repository: widget.reservationRepository),
+          SchedulePage(
+            repository: widget.reservationRepository,
+            customerRepository: widget.customerRepository,
+            menuRepository: widget.menuRepository,
+          ),
           MenuListPage(repository: widget.menuRepository),
         ],
       ),

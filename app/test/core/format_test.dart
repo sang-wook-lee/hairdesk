@@ -12,6 +12,14 @@ void main() {
     });
   });
 
+  group('formatPhone', () {
+    test('하이픈을 넣어 읽기 좋게 보여준다', () {
+      expect(formatPhone('01012345678'), '010-1234-5678');
+      expect(formatPhone('0111234567'), '011-123-4567');
+      expect(formatPhone('123'), '123'); // 형식이 다르면 그대로
+    });
+  });
+
   group('formatDuration', () {
     test('1시간 미만은 분, 정각은 시간, 나머지는 둘 다 보여준다', () {
       expect(formatDuration(45), '45분');

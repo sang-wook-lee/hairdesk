@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'core/api_client.dart';
+import 'features/customer/customer_repository.dart';
 import 'features/home/home_shell.dart';
 import 'features/menu/menu_repository.dart';
 import 'features/reservation/reservation_repository.dart';
@@ -12,6 +13,7 @@ void main() {
   final api = ApiClient();
   runApp(HairdeskApp(
     menuRepository: MenuRepository(api),
+    customerRepository: CustomerRepository(api),
     reservationRepository: ReservationRepository(api),
   ));
 }
@@ -21,10 +23,12 @@ class HairdeskApp extends StatelessWidget {
   const HairdeskApp({
     super.key,
     required this.menuRepository,
+    required this.customerRepository,
     required this.reservationRepository,
   });
 
   final MenuRepository menuRepository;
+  final CustomerRepository customerRepository;
   final ReservationRepository reservationRepository;
 
   @override
@@ -46,6 +50,7 @@ class HairdeskApp extends StatelessWidget {
       ),
       home: HomeShell(
         reservationRepository: reservationRepository,
+        customerRepository: customerRepository,
         menuRepository: menuRepository,
       ),
     );

@@ -2,14 +2,27 @@ import 'package:flutter/material.dart';
 
 import '../../core/error_message.dart';
 import '../../core/kst.dart';
+import '../customer/customer_repository.dart';
+import '../menu/menu_repository.dart';
 import 'reservation.dart';
+import 'reservation_form_page.dart';
 import 'reservation_repository.dart';
 
 /// 하루 일정 화면. 날짜를 넘기며 그날의 예약을 시간순으로 본다.
 class SchedulePage extends StatefulWidget {
-  const SchedulePage({super.key, required this.repository, this.initialDate});
+  const SchedulePage({
+    super.key,
+    required this.repository,
+    required this.customerRepository,
+    required this.menuRepository,
+    this.initialDate,
+  });
 
   final ReservationRepository repository;
+
+  /// 예약 추가 폼이 고객 검색과 메뉴 목록에 쓴다.
+  final CustomerRepository customerRepository;
+  final MenuRepository menuRepository;
 
   /// 처음 보여줄 날짜. 생략하면 오늘(서울 기준). 테스트에서 날짜를 고정하려고 열어 둔다.
   final DateTime? initialDate;
@@ -40,6 +53,25 @@ class _SchedulePageState extends State<SchedulePage> {
   void _moveTo(DateTime date) {
     _date = DateTime(date.year, date.month, date.day);
     _reload();
+  }
+
+  /// 예약 추가 화면을 열고, 예약이 만들어져 돌아오면 그 예약의 날짜로 이동한다.
+  /// (다른 날짜에 예약을 잡고 돌아왔을 때 "어디 갔지?" 하지 않도록)
+  Future<void> _addReservation() async {
+    final created = await Navigator.of(context).push<Reservation>(
+      MaterialPageRoute(
+        builder: (_) => ReservationFormPage(
+          reservationRepository: widget.repository,
+          customerRepository: widget.customerRepository,
+          menuRepository: widget.menuRepository,
+          initialDate: _date,
+        ),
+      ),
+    );
+    if (created != null) {
+      final day = toKst(created.startAt);
+      _moveTo(DateTime(day.year, day.month, day.day));
+    }
   }
 
   Future<void> _pickDate() async {
@@ -101,6 +133,11 @@ class _SchedulePageState extends State<SchedulePage> {
             ),
           ),
         ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _addReservation,
+        icon: const Icon(Icons.add),
+        label: const Text('예약 추가'),
       ),
     );
   }

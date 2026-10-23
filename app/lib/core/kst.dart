@@ -24,6 +24,11 @@ String formatHm(DateTime instant) {
   return '${_two(k.hour)}:${_two(k.minute)}';
 }
 
+/// 서울 벽시계 시각을 서버가 받는 형식으로: DateTime(2026,10,1,14,0) → "2026-10-01T14:00:00+09:00"
+/// (입력은 toKst로 만든 값처럼 "서울에서 시계가 가리키는 시각"이어야 한다)
+String formatKstIso(DateTime wallClock) =>
+    '${formatIsoDate(wallClock)}T${_two(wallClock.hour)}:${_two(wallClock.minute)}:00+09:00';
+
 /// 서버에 보낼 날짜 "2026-10-01"
 String formatIsoDate(DateTime date) =>
     '${date.year}-${_two(date.month)}-${_two(date.day)}';

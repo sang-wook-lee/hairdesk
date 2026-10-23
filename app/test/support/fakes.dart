@@ -1,0 +1,191 @@
+// 테스트에서 서버 대신 쓰는 가짜 저장소 모음.
+// 실제 저장소를 implements하면 같은 메서드를 직접 채워야 해서, 화면이 어떤 기능을 쓰는지 한눈에 보인다.
+// 화면 테스트마다 같은 가짜를 복사하지 않도록 여기 한 곳에 둔다.
+
+import 'package:hairdesk/core/api_client.dart';
+import 'package:hairdesk/core/kst.dart';
+import 'package:hairdesk/features/customer/customer.dart';
+import 'package:hairdesk/features/customer/customer_repository.dart';
+import 'package:hairdesk/features/menu/menu.dart';
+import 'package:hairdesk/features/menu/menu_repository.dart';
+import 'package:hairdesk/features/reservation/reservation.dart';
+import 'package:hairdesk/features/reservation/reservation_repository.dart';
+
+// ---------------------------------------------------------------- 메뉴
+
+class FakeMenuRepository implements MenuRepository {
+  FakeMenuRepository(this.menus);
+
+  final List<Menu> menus;
+  final List<MenuInput> created = [];
+  ApiException? failOnCreate;
+
+  @override
+  Future<List<Menu>> fetchAll({bool includeInactive = false}) async {
+    return menus.where((m) => includeInactive || m.active).toList();
+  }
+
+  @override
+  Future<Menu> create(MenuInput input) async {
+    if (failOnCreate != null) throw failOnCreate!;
+    created.add(input);
+    final menu = Menu(
+      id: menus.length + 1,
+      name: input.name,
+      category: input.category,
+      price: input.price,
+      durationMinutes: input.durationMinutes,
+      active: true,
+      displayOrder: input.displayOrder,
+    );
+    menus.add(menu);
+    return menu;
+  }
+
+  @override
+  Future<Menu> update(int id, MenuInput input) async => throw UnimplementedError();
+
+  @override
+  Future<void> setActive(int id, {required bool active}) async {
+    final index = menus.indexWhere((m) => m.id == id);
+    final old = menus[index];
+    menus[index] = Menu(
+      id: old.id,
+      name: old.name,
+      category: old.category,
+      price: old.price,
+      durationMinutes: old.durationMinutes,
+      active: active,
+      displayOrder: old.displayOrder,
+    );
+  }
+}
+
+Menu menuOf(int id, String name, {int price = 20000, int minutes = 60, bool active = true}) {
+  return Menu(
+    id: id,
+    name: name,
+    category: MenuCategory.cut,
+    price: price,
+    durationMinutes: minutes,
+    active: active,
+    displayOrder: id,
+  );
+}
+
+// ---------------------------------------------------------------- 고객
+
+class FakeCustomerRepository implements CustomerRepository {
+  FakeCustomerRepository(this.customers);
+
+  final List<Customer> customers;
+  final List<String> searches = []; // 서버로 간 검색어 기록
+  final List<CustomerInput> created = [];
+  ApiException? failOnCreate;
+
+  @override
+  Future<List<Customer>> search(String keyword) async {
+    searches.add(keyword.trim());
+    final k = keyword.trim();
+    if (k.isEmpty) return List.of(customers);
+    return customers.where((c) => c.name.contains(k) || c.phone.contains(k)).toList();
+  }
+
+  @override
+  Future<Customer> create(CustomerInput input) async {
+    if (failOnCreate != null) throw failOnCreate!;
+    created.add(input);
+    final customer = Customer(
+      id: 100 + created.length,
+      name: input.name,
+      phone: input.phone.replaceAll(RegExp(r'\D'), ''), // 서버처럼 숫자만 남긴다
+      memo: input.memo,
+    );
+    customers.add(customer);
+    return customer;
+  }
+}
+
+Customer customerOf(int id, String name, String phone, {String? memo}) =>
+    Customer(id: id, name: name, phone: phone, memo: memo);
+
+// ---------------------------------------------------------------- 예약
+
+class FakeReservationRepository implements ReservationRepository {
+  FakeReservationRepository(this.reservations, {this.customers = const [], this.menus = const []});
+
+  final List<Reservation> reservations;
+
+  /// 예약 등록 응답에 이름을 채우려고 쓰는 목록 (서버가 id로 이름을 찾아 주는 것을 흉내 낸다)
+  final List<Customer> customers;
+  final List<Menu> menus;
+
+  final List<String> requestedDates = []; // 조회 요청 기록 "2026-10-01~2026-10-01"
+  final List<Map<String, Object?>> created = []; // 등록 요청 기록
+  ApiException? failWith; // 조회 실패
+  Object? failOnCreate; // 등록 실패. ApiException(예: 409)이나 일반 예외(네트워크 오류)
+
+  @override
+  Future<List<Reservation>> fetchBetween(DateTime from, DateTime to) async {
+    requestedDates.add('${formatIsoDate(from)}~${formatIsoDate(to)}');
+    if (failWith != null) throw failWith!;
+    return reservations.where((r) {
+      final day = toKst(r.startAt);
+      final d = DateTime(day.year, day.month, day.day);
+      return !d.isBefore(from) && !d.isAfter(to);
+    }).toList();
+  }
+
+  @override
+  Future<Reservation> create({
+    required int customerId,
+    required int menuId,
+    required DateTime startAt,
+    String? memo,
+  }) async {
+    if (failOnCreate != null) throw failOnCreate!;
+    final customer = customers.firstWhere((c) => c.id == customerId);
+    final menu = menus.firstWhere((m) => m.id == menuId);
+    final iso = formatKstIso(startAt);
+    created.add({'customerId': customerId, 'menuId': menuId, 'startAt': iso, 'memo': memo});
+
+    final start = DateTime.parse(iso);
+    final reservation = Reservation(
+      id: reservations.length + 1,
+      customerId: customerId,
+      customerName: customer.name,
+      customerPhone: customer.phone,
+      menuId: menuId,
+      menuName: menu.name,
+      startAt: start,
+      endAt: start.add(Duration(minutes: menu.durationMinutes)),
+      status: ReservationStatus.booked,
+      memo: memo,
+    );
+    reservations.add(reservation);
+    return reservation;
+  }
+}
+
+Reservation reservationOf(
+  int id,
+  String customer,
+  String menu,
+  String start,
+  String end, {
+  ReservationStatus status = ReservationStatus.booked,
+  String? memo,
+}) {
+  return Reservation(
+    id: id,
+    customerId: id,
+    customerName: customer,
+    customerPhone: '01012345678',
+    menuId: 1,
+    menuName: menu,
+    startAt: DateTime.parse(start),
+    endAt: DateTime.parse(end),
+    status: status,
+    memo: memo,
+  );
+}

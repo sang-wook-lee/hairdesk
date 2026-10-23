@@ -1,71 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hairdesk/core/api_client.dart';
-import 'package:hairdesk/features/menu/menu.dart';
 import 'package:hairdesk/features/menu/menu_list_page.dart';
-import 'package:hairdesk/features/menu/menu_repository.dart';
 
-/// 서버 대신 메모리에 메뉴를 들고 있는 가짜 저장소.
-/// MenuRepository를 implements하면 같은 모양의 메서드를 직접 채워야 해서, 화면이 쓰는 기능이 한눈에 보인다.
-class FakeMenuRepository implements MenuRepository {
-  FakeMenuRepository(this.menus);
-
-  final List<Menu> menus;
-  final List<MenuInput> created = [];
-  ApiException? failOnCreate;
-
-  @override
-  Future<List<Menu>> fetchAll({bool includeInactive = false}) async {
-    return menus.where((m) => includeInactive || m.active).toList();
-  }
-
-  @override
-  Future<Menu> create(MenuInput input) async {
-    if (failOnCreate != null) throw failOnCreate!;
-    created.add(input);
-    final menu = Menu(
-      id: menus.length + 1,
-      name: input.name,
-      category: input.category,
-      price: input.price,
-      durationMinutes: input.durationMinutes,
-      active: true,
-      displayOrder: input.displayOrder,
-    );
-    menus.add(menu);
-    return menu;
-  }
-
-  @override
-  Future<Menu> update(int id, MenuInput input) async => throw UnimplementedError();
-
-  @override
-  Future<void> setActive(int id, {required bool active}) async {
-    final index = menus.indexWhere((m) => m.id == id);
-    final old = menus[index];
-    menus[index] = Menu(
-      id: old.id,
-      name: old.name,
-      category: old.category,
-      price: old.price,
-      durationMinutes: old.durationMinutes,
-      active: active,
-      displayOrder: old.displayOrder,
-    );
-  }
-}
-
-Menu _menu(int id, String name, {int price = 20000, int minutes = 60, bool active = true}) {
-  return Menu(
-    id: id,
-    name: name,
-    category: MenuCategory.cut,
-    price: price,
-    durationMinutes: minutes,
-    active: active,
-    displayOrder: id,
-  );
-}
+import '../../support/fakes.dart';
 
 Future<void> _pumpList(WidgetTester tester, FakeMenuRepository repository) async {
   await tester.pumpWidget(MaterialApp(home: MenuListPage(repository: repository)));
@@ -74,7 +12,7 @@ Future<void> _pumpList(WidgetTester tester, FakeMenuRepository repository) async
 
 void main() {
   testWidgets('메뉴 목록에 이름, 카테고리, 시간, 가격이 보인다', (tester) async {
-    final repo = FakeMenuRepository([_menu(1, '커트'), _menu(2, '펌', price: 80000, minutes: 150)]);
+    final repo = FakeMenuRepository([menuOf(1, '커트'), menuOf(2, '펌', price: 80000, minutes: 150)]);
 
     await _pumpList(tester, repo);
 
@@ -86,7 +24,7 @@ void main() {
   });
 
   testWidgets('판매 중지 메뉴는 기본으로 숨기고, 스위치를 켜면 "판매 중지"로 보여준다', (tester) async {
-    final repo = FakeMenuRepository([_menu(1, '커트'), _menu(2, '옛날 펌', active: false)]);
+    final repo = FakeMenuRepository([menuOf(1, '커트'), menuOf(2, '옛날 펌', active: false)]);
 
     await _pumpList(tester, repo);
     expect(find.text('옛날 펌'), findsNothing);
@@ -105,7 +43,7 @@ void main() {
   });
 
   testWidgets('메뉴 추가: 폼을 채워 저장하면 목록에 새 메뉴가 나타난다', (tester) async {
-    final repo = FakeMenuRepository([_menu(1, '커트')]);
+    final repo = FakeMenuRepository([menuOf(1, '커트')]);
     await _pumpList(tester, repo);
 
     await tester.tap(find.text('메뉴 추가'));
@@ -172,7 +110,7 @@ void main() {
   });
 
   testWidgets('판매 중지를 누르면 목록에서 사라진다', (tester) async {
-    final repo = FakeMenuRepository([_menu(1, '커트'), _menu(2, '펌')]);
+    final repo = FakeMenuRepository([menuOf(1, '커트'), menuOf(2, '펌')]);
     await _pumpList(tester, repo);
 
     await tester.tap(find.byType(PopupMenuButton<String>).first);

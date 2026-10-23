@@ -10,6 +10,17 @@ String formatWon(int amount) {
   return '$withCommas원';
 }
 
+/// 01012345678 → "010-1234-5678", 0101234567 → "010-123-4567". 형식이 다르면 그대로 돌려준다.
+String formatPhone(String digits) {
+  if (digits.length == 11) {
+    return '${digits.substring(0, 3)}-${digits.substring(3, 7)}-${digits.substring(7)}';
+  }
+  if (digits.length == 10) {
+    return '${digits.substring(0, 3)}-${digits.substring(3, 6)}-${digits.substring(6)}';
+  }
+  return digits;
+}
+
 /// 45 → "45분", 60 → "1시간", 90 → "1시간 30분"
 String formatDuration(int minutes) {
   final hours = minutes ~/ 60; // ~/ 는 정수 나눗셈(몫)

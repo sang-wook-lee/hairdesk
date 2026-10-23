@@ -30,6 +30,12 @@ void main() {
       expect(formatIsoDate(DateTime(2026, 1, 5)), '2026-01-05');
     });
 
+    test('서버로 보낼 시각은 서울 오프셋(+09:00)을 붙인 형식이다', () {
+      expect(formatKstIso(DateTime(2026, 10, 1, 9, 5)), '2026-10-01T09:05:00+09:00');
+      // 서버가 이 문자열을 받아 해석한 시각을 다시 서울 시각으로 보면 처음 입력과 같아야 한다 (왕복)
+      expect(formatHm(DateTime.parse(formatKstIso(DateTime(2026, 10, 1, 9, 5)))), '09:05');
+    });
+
     test('화면용 날짜에는 한글 요일이 붙는다', () {
       expect(formatKoreanDate(DateTime(2026, 10, 1)), '2026년 10월 1일 (목)');
       expect(formatKoreanDate(DateTime(2026, 10, 4)), '2026년 10월 4일 (일)');

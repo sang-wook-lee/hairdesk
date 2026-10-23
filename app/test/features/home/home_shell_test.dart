@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hairdesk/core/api_client.dart';
 import 'package:hairdesk/features/home/home_shell.dart';
+import 'package:hairdesk/features/customer/customer_repository.dart';
 import 'package:hairdesk/features/menu/menu_repository.dart';
 import 'package:hairdesk/features/reservation/reservation_repository.dart';
 import 'package:http/http.dart' as http;
@@ -14,6 +15,7 @@ void main() {
     await tester.pumpWidget(MaterialApp(
       home: HomeShell(
         reservationRepository: ReservationRepository(api),
+        customerRepository: CustomerRepository(api),
         menuRepository: MenuRepository(api),
       ),
     ));
