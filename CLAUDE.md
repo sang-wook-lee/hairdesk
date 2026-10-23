@@ -45,7 +45,8 @@ com.salonapp
 
 - `backend/` Spring Boot API (Spring Boot 4.1, Gradle 9)
 - `docs/adr/` 설계 결정 기록
-- (예정) `app/` Flutter 클라이언트
+- `app/` Flutter 클라이언트 (현재 Chrome 웹 우선. Android/Windows 도구는 미설치)
+  - `lib/core/` 공통(API 클라이언트), `lib/features/` 화면 단위 기능
 
 ## 자주 쓰는 명령 (`backend/`에서 실행, Docker Desktop 실행 필요)
 
@@ -54,6 +55,17 @@ com.salonapp
 ./gradlew test      # 테스트. Testcontainers가 테스트용 PostgreSQL을 따로 띄움
 ./gradlew build     # 컴파일 + 테스트 + jar 생성
 ```
+
+프론트 (`app/`에서 실행. Flutter는 `C:\dev\flutter`에 설치, PATH 미등록이라 경로 지정 필요):
+
+```bash
+C:\dev\flutter\bin\flutter run -d chrome   # 개발 실행(핫 리로드). 백엔드를 먼저 켜 둘 것
+C:\dev\flutter\bin\flutter test            # 테스트
+C:\dev\flutter\bin\flutter analyze         # 정적 분석
+```
+
+- 한글 JSON은 `response.body`가 아니라 `utf8.decode(response.bodyBytes)`로 읽는다 (`ApiClient` 참고).
+- 브라우저에서 API를 부르려면 백엔드 CORS 허용이 필요하다 (`CorsConfig`, localhost만 허용).
 
 - 헬스체크: http://localhost:8080/actuator/health
 - API 문서(Swagger UI): http://localhost:8080/swagger-ui.html
