@@ -40,6 +40,28 @@ void main() {
     );
   });
 
+  test('POST 본문은 UTF-8 JSON으로 보내고 한글이 보존된다', () async {
+    late http.Request sent;
+    final client = MockClient((request) async {
+      sent = request;
+      return http.Response.bytes(utf8.encode('{"id":1}'), 201);
+    });
+
+    await ApiClient(httpClient: client).postJson('/api/menus', body: {'name': '커트'});
+
+    expect(sent.method, 'POST');
+    expect(sent.headers['content-type'], contains('application/json'));
+    expect(utf8.decode(sent.bodyBytes), '{"name":"커트"}');
+  });
+
+  test('본문이 비어 있는 성공 응답(204)은 null을 돌려준다', () async {
+    final client = MockClient((request) async => http.Response('', 204));
+
+    final result = await ApiClient(httpClient: client).postJson('/api/menus/1/deactivate');
+
+    expect(result, isNull);
+  });
+
   test('쿼리 파라미터가 주소 뒤에 붙는다', () async {
     Uri? requested;
     final client = MockClient((request) async {

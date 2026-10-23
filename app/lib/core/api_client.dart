@@ -34,6 +34,25 @@ class ApiClient {
     return _decode(response);
   }
 
+  /// POST 요청. [body]는 Map처럼 JSON으로 바꿀 수 있는 객체. 본문이 필요 없으면 생략한다.
+  /// 응답 본문이 비어 있으면(204 등) null을 돌려준다.
+  Future<dynamic> postJson(String path, {Object? body}) => _send('POST', path, body);
+
+  /// PUT 요청 (전체 수정).
+  Future<dynamic> putJson(String path, {required Object body}) => _send('PUT', path, body);
+
+  Future<dynamic> _send(String method, String path, Object? body) async {
+    final request = http.Request(method, Uri.parse('$apiBaseUrl$path'));
+    if (body != null) {
+      request.headers['content-type'] = 'application/json; charset=utf-8';
+      // 글자 대신 UTF-8 바이트로 직접 보낸다. 한글이 어떤 환경에서도 같게 전달된다.
+      request.bodyBytes = utf8.encode(jsonEncode(body));
+    }
+    final streamed = await _http.send(request);
+    final response = await http.Response.fromStream(streamed);
+    return _decode(response);
+  }
+
   dynamic _decode(http.Response response) {
     // response.body를 쓰면 안 된다: 서버가 charset을 알려주지 않으면 http 패키지가
     // 한글을 latin1로 잘못 읽어 글자가 깨진다. 바이트를 직접 UTF-8로 풀어야 한다.
