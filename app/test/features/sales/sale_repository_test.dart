@@ -96,4 +96,32 @@ void main() {
     expect(summary.totalAmount, 88000);
     expect(summary.count, 3);
   });
+
+  group('SalesSummary 읽기', () {
+    test('결제수단별 내역(byMethod)을 읽는다', () {
+      final summary = SalesSummary.fromJson({
+        'totalAmount': 1622000,
+        'count': 30,
+        'byMethod': [
+          {'method': 'CARD', 'totalAmount': 713000, 'count': 14},
+          {'method': 'CASH', 'totalAmount': 441000, 'count': 9},
+          {'method': 'TRANSFER', 'totalAmount': 468000, 'count': 7},
+        ],
+      });
+
+      expect(summary.byMethod.map((m) => m.method),
+          [PaymentMethod.card, PaymentMethod.cash, PaymentMethod.transfer]);
+      expect(summary.byMethod.first.totalAmount, 713000);
+      expect(summary.byMethod.first.count, 14);
+    });
+
+    test('매출이 없는 기간(byMethod가 빈 목록)이나 byMethod가 아예 없는 응답도 읽는다', () {
+      final empty = SalesSummary.fromJson({'totalAmount': 0, 'count': 0, 'byMethod': []});
+      final missing = SalesSummary.fromJson({'totalAmount': 18000, 'count': 1}); // 홈 화면 테스트용 가짜와 같은 모양
+
+      expect(empty.byMethod, isEmpty);
+      expect(missing.byMethod, isEmpty);
+      expect(missing.totalAmount, 18000);
+    });
+  });
 }

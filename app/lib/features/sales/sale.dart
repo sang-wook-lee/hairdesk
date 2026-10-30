@@ -41,17 +41,47 @@ class Sale {
   }
 }
 
-/// 기간 매출 요약: 총액과 건수. (서버의 /api/sales/summary에서 이 두 값만 쓴다)
+/// 결제수단별 합계 한 줄 (예: 카드 713,000원 14건)
+class MethodTotal {
+  const MethodTotal({required this.method, required this.totalAmount, required this.count});
+
+  final PaymentMethod method;
+  final int totalAmount;
+  final int count;
+
+  factory MethodTotal.fromJson(Map<String, dynamic> json) {
+    return MethodTotal(
+      method: PaymentMethod.fromApi(json['method'] as String),
+      totalAmount: json['totalAmount'] as int,
+      count: json['count'] as int,
+    );
+  }
+}
+
+/// 기간 매출 요약: 총액, 건수, 결제수단별 내역. (서버의 /api/sales/summary 응답)
+/// 홈 화면은 총액과 건수만 쓰고, 통계 화면은 [byMethod]까지 쓴다.
 class SalesSummary {
-  const SalesSummary({required this.totalAmount, required this.count});
+  const SalesSummary({
+    required this.totalAmount,
+    required this.count,
+    this.byMethod = const [],
+  });
 
   final int totalAmount; // 원
   final int count; // 결제 건수
 
+  /// 매출이 있는 결제수단만 들어 있다. 매출이 없는 기간이면 빈 목록이다.
+  final List<MethodTotal> byMethod;
+
   factory SalesSummary.fromJson(Map<String, dynamic> json) {
+    // byMethod가 응답에 없어도(예전 응답, 테스트용 가짜) 빈 목록으로 읽는다.
+    final methods = (json['byMethod'] as List<dynamic>?) ?? const [];
     return SalesSummary(
       totalAmount: json['totalAmount'] as int,
       count: json['count'] as int,
+      byMethod: [
+        for (final m in methods) MethodTotal.fromJson(m as Map<String, dynamic>),
+      ],
     );
   }
 }
