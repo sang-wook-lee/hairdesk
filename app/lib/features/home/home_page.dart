@@ -25,6 +25,7 @@ class HomePage extends StatefulWidget {
     required this.menuRepository,
     required this.saleRepository,
     required this.onOpenSchedule,
+    required this.onOpenStats,
     required this.onOpenMenus,
     this.clock = DateTime.now,
   });
@@ -36,6 +37,7 @@ class HomePage extends StatefulWidget {
 
   /// 탭 이동은 화면 뼈대(HomeShell)의 일이라 콜백으로 부탁한다.
   final VoidCallback onOpenSchedule;
+  final VoidCallback onOpenStats;
   final VoidCallback onOpenMenus;
 
   /// "지금"을 알려주는 함수. 기본은 실제 시계이고, 테스트에서는 고정된 시각을 돌려주는 함수를 넣는다.
@@ -215,13 +217,17 @@ class _HomePageState extends State<HomePage> {
         const SizedBox(height: 20),
         _SectionTitle('빠른 실행'),
         const SizedBox(height: 8),
-        GridView.count(
-          crossAxisCount: 3,
+        GridView(
           shrinkWrap: true, // ListView 안에 넣으려면 내용 높이만큼만 차지하게 해야 한다
           physics: const NeverScrollableScrollPhysics(), // 스크롤은 바깥 ListView가 한다
-          mainAxisSpacing: 8,
-          crossAxisSpacing: 8,
-          childAspectRatio: 1.7,
+          // 칸 높이를 "가로 폭 비율"이 아니라 고정값(92)으로 둔다. 비율로 정하면 폰처럼 좁은 화면에서 칸이 너무 낮아져
+          // 아이콘, 이름, "준비 중" 글자가 잘린다.
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 3,
+            mainAxisSpacing: 8,
+            crossAxisSpacing: 8,
+            mainAxisExtent: 92,
+          ),
           children: [
             _ActionTile(icon: Icons.event_available, label: '예약 추가', onTap: _addReservation),
             _ActionTile(
@@ -236,12 +242,7 @@ class _HomePageState extends State<HomePage> {
               soon: true,
               onTap: () => _comingSoon('고객 관리'),
             ),
-            _ActionTile(
-              icon: Icons.bar_chart,
-              label: '매출·통계',
-              soon: true,
-              onTap: () => _comingSoon('매출·통계'),
-            ),
+            _ActionTile(icon: Icons.bar_chart, label: '매출·통계', onTap: widget.onOpenStats),
             _ActionTile(icon: Icons.content_cut, label: '시술 메뉴', onTap: widget.onOpenMenus),
             _ActionTile(
               icon: Icons.event_busy,

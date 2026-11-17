@@ -40,6 +40,7 @@ class _Harness {
   late final FakeSaleRepository sales;
 
   int scheduleOpened = 0;
+  int statsOpened = 0;
   int menusOpened = 0;
 
   static List<Reservation> _defaultReservations() => [
@@ -55,8 +56,8 @@ class _Harness {
             status: ReservationStatus.cancelled),
       ];
 
-  Future<void> pump(WidgetTester tester) async {
-    tester.view.physicalSize = const Size(800, 2400); // 홈은 길어서 키 큰 화면에서 본다
+  Future<void> pump(WidgetTester tester, {double width = 800}) async {
+    tester.view.physicalSize = Size(width, 2400); // 홈은 길어서 키 큰 화면에서 본다
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
@@ -68,6 +69,7 @@ class _Harness {
         menuRepository: menus,
         saleRepository: sales,
         onOpenSchedule: () => scheduleOpened++,
+        onOpenStats: () => statsOpened++,
         onOpenMenus: () => menusOpened++,
         clock: clock,
       ),
@@ -183,7 +185,7 @@ void main() {
   testWidgets('아직 없는 기능의 버튼은 "준비 중" 표시가 있고, 누르면 안내만 한다', (tester) async {
     await _Harness().pump(tester);
 
-    expect(find.text('준비 중'), findsNWidgets(4)); // 매출 등록, 고객 관리, 매출·통계, 휴무일 설정
+    expect(find.text('준비 중'), findsNWidgets(3)); // 매출 등록, 고객 관리, 휴무일 설정 (매출·통계는 이제 동작한다)
 
     await tester.tap(find.text('고객 관리'));
     await tester.pump();
@@ -191,15 +193,36 @@ void main() {
     expect(find.text('고객 관리 기능은 준비 중이에요'), findsOneWidget);
   });
 
-  testWidgets('"시술 메뉴"와 "전체 보기"는 탭 이동을 부탁한다', (tester) async {
+  testWidgets('폰 폭(375)에서도 빠른 실행 칸의 아이콘, 이름, "준비 중"이 잘리지 않는다 (넘침 에러가 없다)', (tester) async {
+    await _Harness().pump(tester, width: 375);
+
+    // 칸 안의 내용이 칸보다 크면 Flutter가 "RenderFlex overflowed" 에러를 던진다. 그게 없어야 한다.
+    expect(tester.takeException(), isNull);
+    for (final label in ['예약 추가', '매출 등록', '고객 관리', '매출·통계', '시술 메뉴', '휴무일 설정']) {
+      final tile = find.ancestor(of: find.text(label), matching: find.byType(InkWell));
+      expect(tester.getSize(tile).height, 92, reason: '$label 칸 높이');
+    }
+    expect(find.text('준비 중'), findsNWidgets(3));
+  });
+
+  testWidgets('"시술 메뉴", "매출·통계", "전체 보기"는 탭 이동을 부탁한다', (tester) async {
     final h = _Harness();
     await h.pump(tester);
 
     await tester.tap(find.text('시술 메뉴'));
+    await tester.tap(find.text('매출·통계'));
     await tester.tap(find.text('전체 보기'));
 
     expect(h.menusOpened, 1);
+    expect(h.statsOpened, 1);
     expect(h.scheduleOpened, 1);
+  });
+
+  testWidgets('"매출·통계" 버튼에는 더 이상 "준비 중" 표시가 없다', (tester) async {
+    await _Harness().pump(tester);
+
+    final statsTile = find.ancestor(of: find.text('매출·통계'), matching: find.byType(InkWell));
+    expect(find.descendant(of: statsTile, matching: find.text('준비 중')), findsNothing);
   });
 
   testWidgets('"예약 추가"는 오늘 날짜로 예약 폼을 연다', (tester) async {

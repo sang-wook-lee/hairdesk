@@ -7,16 +7,21 @@ import 'features/home/home_shell.dart';
 import 'features/menu/menu_repository.dart';
 import 'features/reservation/reservation_repository.dart';
 import 'features/sales/sale_repository.dart';
+import 'features/stats/stats_data.dart';
+import 'features/stats/stats_repository.dart';
 
 /// 앱의 시작점. Dart는 항상 main()부터 실행된다.
 /// 여기서 부품(ApiClient, 저장소)을 한 번 만들어 필요한 화면에 넘겨준다. (ADR 0006)
 void main() {
   final api = ApiClient();
+  final saleRepository = SaleRepository(api);
   runApp(HairdeskApp(
     menuRepository: MenuRepository(api),
     customerRepository: CustomerRepository(api),
     reservationRepository: ReservationRepository(api),
-    saleRepository: SaleRepository(api),
+    saleRepository: saleRepository,
+    // 통계 로더는 통계 저장소와 매출 저장소(기간 요약)를 함께 쓴다.
+    statsLoader: StatsLoader(stats: StatsRepository(api), sales: saleRepository),
   ));
 }
 
@@ -28,12 +33,14 @@ class HairdeskApp extends StatelessWidget {
     required this.customerRepository,
     required this.reservationRepository,
     required this.saleRepository,
+    required this.statsLoader,
   });
 
   final MenuRepository menuRepository;
   final CustomerRepository customerRepository;
   final ReservationRepository reservationRepository;
   final SaleRepository saleRepository;
+  final StatsLoader statsLoader;
 
   @override
   Widget build(BuildContext context) {
@@ -57,6 +64,7 @@ class HairdeskApp extends StatelessWidget {
         customerRepository: customerRepository,
         menuRepository: menuRepository,
         saleRepository: saleRepository,
+        statsLoader: statsLoader,
       ),
     );
   }

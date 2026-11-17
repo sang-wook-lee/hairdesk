@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hairdesk/features/home/home_shell.dart';
+import 'package:hairdesk/features/stats/stats_data.dart';
 
 import '../../support/fakes.dart';
 
 void main() {
   late FakeReservationRepository reservations;
+  late FakeStatsRepository stats;
+
+  /// 통계 서버 호출 중 "일별 매출" 호출만 센다. 통계 화면이 한 번 불러올 때마다 정확히 하나씩 늘어난다.
+  int statsLoads() => stats.requests.where((r) => r.startsWith('daily:')).length;
 
   Future<void> pump(WidgetTester tester) async {
     tester.view.physicalSize = const Size(800, 2400);
@@ -14,12 +19,15 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
 
     reservations = FakeReservationRepository([]);
+    stats = FakeStatsRepository();
+    final sales = FakeSaleRepository();
     await tester.pumpWidget(MaterialApp(
       home: HomeShell(
         reservationRepository: reservations,
         customerRepository: FakeCustomerRepository([]),
         menuRepository: FakeMenuRepository([]),
-        saleRepository: FakeSaleRepository(),
+        saleRepository: sales,
+        statsLoader: StatsLoader(stats: stats, sales: sales),
         clock: () => DateTime.parse('2026-10-01T11:00:00+09:00'),
       ),
     ));
@@ -65,5 +73,64 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(reservations.requestedDates.where((d) => d == homeDay).length, 2);
+  });
+
+  group('통계 탭', () {
+    testWidgets('처음 누르기 전에는 통계 서버를 부르지 않는다 (앱을 켤 때마다 호출 6개를 보내지 않는다)', (tester) async {
+      await pump(tester);
+
+      expect(stats.requests, isEmpty);
+      expect(statsLoads(), 0);
+    });
+
+    testWidgets('처음 누르면 이번 달 통계를 한 번 불러와 보여준다', (tester) async {
+      await pump(tester);
+
+      await tester.tap(find.text('통계').last);
+      await tester.pumpAndSettle();
+
+      expect(find.text('2026년 10월'), findsOneWidget); // 시계가 10월 1일
+      expect(statsLoads(), 1);
+    });
+
+    testWidgets('홈의 "매출·통계" 버튼이 통계 탭으로 보내 준다', (tester) async {
+      await pump(tester);
+
+      await tester.tap(find.text('매출·통계'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('2026년 10월'), findsOneWidget);
+      expect(statsLoads(), 1);
+    });
+
+    testWidgets('다른 탭에 갔다 돌아오면 다시 불러오고, 보던 달은 그대로 유지한다', (tester) async {
+      await pump(tester);
+      await tester.tap(find.text('통계').last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('이전 달')); // 9월로
+      await tester.pumpAndSettle();
+      expect(find.text('2026년 9월'), findsOneWidget);
+      expect(statsLoads(), 2); // 10월 + 9월
+
+      await tester.tap(find.text('일정').last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('통계').last);
+      await tester.pumpAndSettle();
+
+      expect(find.text('2026년 9월'), findsOneWidget); // 이번 달로 돌아가지 않는다
+      expect(statsLoads(), 3); // 같은 달을 새로 불러왔다
+      expect(stats.requests.last, startsWith('reservations:2026-09-01'));
+    });
+
+    testWidgets('통계 탭 안에서 같은 탭을 다시 눌러도 불필요하게 다시 부르지 않는다', (tester) async {
+      await pump(tester);
+      await tester.tap(find.text('통계').last);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('통계').last);
+      await tester.pumpAndSettle();
+
+      expect(statsLoads(), 1);
+    });
   });
 }

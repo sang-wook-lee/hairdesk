@@ -2,6 +2,8 @@
 // 실제 저장소를 implements하면 같은 메서드를 직접 채워야 해서, 화면이 어떤 기능을 쓰는지 한눈에 보인다.
 // 화면 테스트마다 같은 가짜를 복사하지 않도록 여기 한 곳에 둔다.
 
+import 'dart:async';
+
 import 'package:hairdesk/core/api_client.dart';
 import 'package:hairdesk/core/kst.dart';
 import 'package:hairdesk/features/customer/customer.dart';
@@ -303,6 +305,9 @@ class FakeStatsRepository implements StatsRepository {
   final List<String> requests = []; // "daily:2026-11-01~2026-11-30" 처럼 종류와 기간
   Object? failWith; // 모든 호출이 이 에러로 실패
 
+  /// 값이 있으면 일별 매출 응답이 이 Completer가 끝날 때까지 늦춰진다. (느린 서버와 요청 경쟁을 흉내 내려고)
+  Completer<void>? gate;
+
   String _record(String kind, DateTime from, DateTime to) {
     final entry = '$kind:${formatIsoDate(from)}~${formatIsoDate(to)}';
     requests.add(entry);
@@ -313,6 +318,8 @@ class FakeStatsRepository implements StatsRepository {
   @override
   Future<List<DailySales>> dailySales(DateTime from, DateTime to) async {
     _record('daily', from, to);
+    final waiting = gate; // 호출 시점의 gate를 잡아 둔다 (나중에 gate를 바꿔도 이 호출은 원래 gate를 기다린다)
+    if (waiting != null) await waiting.future;
     return daily;
   }
 
