@@ -10,6 +10,7 @@
   - 영리한 코드보다 읽히는 코드. 마법 같은 추상화 금지.
   - 중요한 설계 결정은 `docs/adr/`에 ADR로 남긴다.
 - 기능 하나 = 설계 설명 → 구현 → 테스트 → 커밋.
+- **한 단계(기능·층)를 끝내 커밋할 때 `docs/PROGRESS.md`도 같이 갱신한다.** (진행 현황 표, 타임라인, 로드맵 체크박스, 테스트 개수, 알려진 이슈. 규칙은 그 문서 맨 아래 "문서 관리")
 
 ## 기술 스택
 
@@ -45,6 +46,8 @@ com.salonapp
 
 - `backend/` Spring Boot API (Spring Boot 4.1, Gradle 9)
 - `docs/adr/` 설계 결정 기록
+- `docs/PROGRESS.md` **진행 현황·타임라인·로드맵** (기준 문서)
+- `docs/blog/` 블로그 글 초안과 캡처 이미지
 - `app/` Flutter 클라이언트 (현재 Chrome 웹 우선. Android/Windows 도구는 미설치)
   - `lib/core/` 공통(API 클라이언트), `lib/features/` 화면 단위 기능
 
