@@ -12,6 +12,8 @@ import 'package:hairdesk/features/reservation/reservation.dart';
 import 'package:hairdesk/features/reservation/reservation_repository.dart';
 import 'package:hairdesk/features/sales/sale.dart';
 import 'package:hairdesk/features/sales/sale_repository.dart';
+import 'package:hairdesk/features/stats/stats.dart';
+import 'package:hairdesk/features/stats/stats_repository.dart';
 
 // ---------------------------------------------------------------- 메뉴
 
@@ -253,6 +255,7 @@ class FakeSaleRepository implements SaleRepository {
   /// 매출 요약 테스트용 장부: (날짜, 금액) 목록. 서울 기준 날짜로 쓴다.
   final List<({DateTime date, int amount})> ledger;
   Object? failOnSummary;
+  final List<String> summaryRequests = []; // 요약 요청 기록 "2026-11-01~2026-11-30"
   final List<Map<String, Object?>> created = [];
   Object? failOnCreate;
 
@@ -271,11 +274,66 @@ class FakeSaleRepository implements SaleRepository {
 
   @override
   Future<SalesSummary> summarize(DateTime from, DateTime to) async {
+    summaryRequests.add('${formatIsoDate(from)}~${formatIsoDate(to)}');
     if (failOnSummary != null) throw failOnSummary!;
     final inRange = ledger.where((s) => !s.date.isBefore(from) && !s.date.isAfter(to));
     return SalesSummary(
       totalAmount: inRange.fold(0, (sum, s) => sum + s.amount),
       count: inRange.length,
     );
+  }
+}
+
+// ---------------------------------------------------------------- 통계
+
+/// 정해진 통계 값을 돌려주는 가짜 저장소. 어떤 기간으로 불렀는지도 기록한다.
+class FakeStatsRepository implements StatsRepository {
+  FakeStatsRepository({
+    this.daily = const [],
+    this.menus = const [],
+    this.customers = const CustomerStats(totalCustomers: 0, newCustomers: 0, returningCustomers: 0),
+    this.reservations = const ReservationStats(booked: 0, completed: 0, cancelled: 0, noShow: 0, noShowRate: 0),
+  });
+
+  final List<DailySales> daily;
+  final List<MenuSales> menus;
+  final CustomerStats customers;
+  final ReservationStats reservations;
+
+  final List<String> requests = []; // "daily:2026-11-01~2026-11-30" 처럼 종류와 기간
+  Object? failWith; // 모든 호출이 이 에러로 실패
+
+  String _record(String kind, DateTime from, DateTime to) {
+    final entry = '$kind:${formatIsoDate(from)}~${formatIsoDate(to)}';
+    requests.add(entry);
+    if (failWith != null) throw failWith!;
+    return entry;
+  }
+
+  @override
+  Future<List<DailySales>> dailySales(DateTime from, DateTime to) async {
+    _record('daily', from, to);
+    return daily;
+  }
+
+  @override
+  Future<List<MonthlySales>> monthlySales(int year) async => throw UnimplementedError();
+
+  @override
+  Future<List<MenuSales>> salesByMenu(DateTime from, DateTime to) async {
+    _record('menus', from, to);
+    return menus;
+  }
+
+  @override
+  Future<CustomerStats> customerStats(DateTime from, DateTime to) async {
+    _record('customers', from, to);
+    return customers;
+  }
+
+  @override
+  Future<ReservationStats> reservationStats(DateTime from, DateTime to) async {
+    _record('reservations', from, to);
+    return reservations;
   }
 }
