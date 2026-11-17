@@ -14,7 +14,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-/** 브라우저(Flutter 웹)가 API를 부를 수 있도록 CORS가 열려 있는지 확인한다. */
+/** 브라우저(Flutter 웹)가 API를 부를 수 있도록 CORS가 열려 있는지, 그리고 엉뚱한 출처는 막히는지 확인한다. (ADR 0009) */
 @SpringBootTest
 @AutoConfigureMockMvc
 @Import(TestcontainersConfiguration.class)
@@ -43,9 +43,43 @@ class CorsTest {
     }
 
     @Test
-    @DisplayName("localhost가 아닌 출처는 허용하지 않는다")
+    @DisplayName("집 안 네트워크의 사설 IP 출처도 허용한다 (폰 브라우저로 PC의 앱을 열어 볼 때)")
+    void allowsPrivateNetworkOrigins() throws Exception {
+        for (String origin : new String[]{"http://192.168.219.108:5173", "http://10.0.0.5:5173", "http://172.20.1.1:5173"}) {
+            mockMvc.perform(get("/api/menus").header("Origin", origin))
+                    .andExpect(status().isOk())
+                    .andExpect(header().string("Access-Control-Allow-Origin", origin));
+        }
+    }
+
+    @Test
+    @DisplayName("사설 IP 출처에서도 preflight(PATCH)가 통과한다")
+    void allowsPreflightFromPrivateNetwork() throws Exception {
+        mockMvc.perform(options("/api/reservations/1/time")
+                        .header("Origin", "http://192.168.219.108:5173")
+                        .header("Access-Control-Request-Method", "PATCH")
+                        .header("Access-Control-Request-Headers", "content-type"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Access-Control-Allow-Origin", "http://192.168.219.108:5173"));
+    }
+
+    @Test
+    @DisplayName("localhost와 사설 IP가 아닌 출처는 허용하지 않는다")
     void rejectsOtherOrigins() throws Exception {
-        mockMvc.perform(get("/api/menus").header("Origin", "http://evil.example.com"))
-                .andExpect(status().isForbidden());
+        for (String origin : new String[]{
+                "http://evil.example.com",
+                "http://8.8.8.8:5173",
+                "http://172.32.0.1:5173",
+                "http://192.168.evil.com:5173"}) {
+            mockMvc.perform(get("/api/menus").header("Origin", origin))
+                    .andExpect(status().isForbidden());
+        }
+    }
+
+    @Test
+    @DisplayName("Origin 헤더가 없는 요청(curl, 서버끼리 호출)은 CORS와 무관하게 통과한다")
+    void requestsWithoutOriginPass() throws Exception {
+        mockMvc.perform(get("/api/menus"))
+                .andExpect(status().isOk());
     }
 }

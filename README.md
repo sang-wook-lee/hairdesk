@@ -53,7 +53,7 @@ hairdesk는 이 세 가지를 한 앱에서 다룹니다. 재취업 포트폴리
 - **통계의 전월 대비는 같은 기간끼리 비교합니다.** 달 초마다 "-70%"로 보이는 일을 막습니다. → [ADR 0007](docs/adr/0007-statistics-display-rules.md)
 - **차트는 외부 패키지 없이 기본 위젯으로** 만들어 코드를 읽고 이해할 수 있게 했습니다. → [ADR 0008](docs/adr/0008-charts-with-plain-widgets.md)
 
-설계 결정은 모두 [`docs/adr/`](docs/adr/README.md)에 이유와 함께 기록합니다(현재 8개).
+설계 결정은 모두 [`docs/adr/`](docs/adr/README.md)에 이유와 함께 기록합니다(현재 9개).
 
 ## 구조
 
@@ -90,9 +90,21 @@ flutter run -d chrome
 
 ```bash
 # 테스트
-./gradlew test        # backend/  (62개, Docker 필요)
-flutter test          # app/      (212개)
+./gradlew test        # backend/  (88개, Docker 필요)
+flutter test          # app/      (213개)
 ```
+
+### 폰으로 보기 (같은 와이파이)
+
+PC에서 백엔드(`./gradlew bootRun`)를 켠 상태로, 저장소 맨 위 폴더에서 다음을 실행합니다.
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\phone-preview.ps1
+```
+
+- PC의 와이파이 주소를 찾아 그 주소를 서버 주소로 박아 앱을 빌드하고, 폰이 열 수 있게 띄웁니다. 화면에 나오는 주소(`http://192.168.x.x:5173`)를 폰 브라우저에서 엽니다.
+- **같은 와이파이에서만** 됩니다. 개발 DB 포트(5432)도 같은 네트워크에 열려 있으니 **믿을 수 있는 네트워크(집)에서만** 쓰세요. 이유와 주의점은 [ADR 0009](docs/adr/0009-phone-preview-over-lan.md)에 있습니다.
+- Windows 방화벽 창이 뜨면 "개인 네트워크"만 허용하세요.
 
 개발용 DB를 처음부터 다시 채우려면 `backend/`에서 `docker compose down -v` 후 다시 `bootRun`을 실행합니다. **개발 DB의 모든 데이터가 지워집니다.**
 

@@ -62,6 +62,11 @@ void main() {
     expect(result, isNull);
   });
 
+  test('서버 주소를 따로 정하지 않으면 내 컴퓨터의 서버(localhost:8080)를 쓴다', () {
+    // 폰용으로 빌드할 때만 --dart-define=API_BASE_URL=... 로 바뀐다. 일반 개발·테스트는 기본값이어야 한다.
+    expect(apiBaseUrl, 'http://localhost:8080');
+  });
+
   test('쿼리 파라미터가 주소 뒤에 붙는다', () async {
     Uri? requested;
     final client = MockClient((request) async {

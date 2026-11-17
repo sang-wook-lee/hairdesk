@@ -2,9 +2,16 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
-/// 서버 주소. 개발 중에는 내 컴퓨터의 Spring Boot 서버.
-/// 배포할 때는 실제 서버 주소로 바꿔야 한다. (나중에 빌드 설정으로 분리 예정)
-const String apiBaseUrl = 'http://localhost:8080';
+/// 서버 주소. 빌드할 때 `--dart-define=API_BASE_URL=주소`로 바꿀 수 있고, 안 주면 내 컴퓨터의 서버다.
+///
+/// 예) 폰으로 볼 때: flutter build web --dart-define=API_BASE_URL=http://192.168.219.108:8080
+/// (폰에게 "localhost"는 폰 자신이라서, 서버가 있는 PC의 주소를 알려줘야 한다)
+///
+/// String.fromEnvironment는 "빌드 시점"에 값이 굳는다. 실행 중에는 바꿀 수 없다.
+const String apiBaseUrl = String.fromEnvironment(
+  'API_BASE_URL',
+  defaultValue: 'http://localhost:8080',
+);
 
 /// 서버가 에러(4xx/5xx)로 응답했을 때 던지는 예외.
 /// 백엔드의 에러 응답은 { "status": 409, "detail": "해당 시간에 이미 예약이 있습니다." } 형식이라

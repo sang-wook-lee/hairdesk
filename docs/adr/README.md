@@ -42,3 +42,4 @@
 | [0006](0006-frontend-structure-and-state.md) | 프론트엔드 구조와 상태 관리 | 승인 |
 | [0007](0007-statistics-display-rules.md) | 통계 화면의 표시 규칙(같은 기간 비교, 0원 비교 불가, 합 100% 비율) | 승인 |
 | [0008](0008-charts-with-plain-widgets.md) | 차트는 외부 패키지 없이 기본 위젯으로 만든다 | 승인 |
+| [0009](0009-phone-preview-over-lan.md) | 개발 중 폰으로 보기: 사설 IP 출처만 CORS 허용 | 승인 |

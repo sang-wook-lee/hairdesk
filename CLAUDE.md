@@ -68,7 +68,9 @@ C:\dev\flutter\bin\flutter analyze         # 정적 분석
 ```
 
 - 한글 JSON은 `response.body`가 아니라 `utf8.decode(response.bodyBytes)`로 읽는다 (`ApiClient` 참고).
-- 브라우저에서 API를 부르려면 백엔드 CORS 허용이 필요하다 (`CorsConfig`, localhost만 허용).
+- 브라우저에서 API를 부르려면 백엔드 CORS 허용이 필요하다 (`CorsConfig`). 허용 출처는 localhost와 **사설 IP(집 안 네트워크)** 뿐이다. 도메인 이름은 막는다. (ADR 0009)
+- 앱의 서버 주소는 `--dart-define=API_BASE_URL=주소`로 바꾼다. 안 주면 `http://localhost:8080`.
+- **폰으로 보기(같은 와이파이)**: 백엔드를 켠 뒤 저장소 맨 위에서 `powershell -ExecutionPolicy Bypass -File scripts\phone-preview.ps1`. 개발 DB 포트(5432)가 같은 네트워크에 열리므로 믿을 수 있는 네트워크에서만.
 
 개발용 샘플 데이터 (`DevDataSeeder`):
 - `./gradlew bootRun`은 `local` 프로필로 켜지고, **DB가 비어 있으면** 서버가 켜질 때 샘플 데이터(메뉴 8, 고객 12, 오늘 기준 과거 60일~앞으로 7일의 예약·매출)를 자동으로 넣는다.
