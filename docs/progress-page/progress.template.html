@@ -1,0 +1,468 @@
+<title>hairdesk 개발 현황</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
+<style>
+  /* 레이아웃: 위에서 아래로 한 줄기. 요약 띠 → 영역별 진행 → 로드맵 → 타임라인 → 기능 → 설계·품질 → 화면.
+     카드는 요약 띠와 스크린샷에만 쓰고, 나머지는 헤어라인으로 나눈 "장부" 형태로 훑어 읽게 한다.
+     색: 앱의 테마색(청록)을 강조색으로 쓰고, 상태색(완료·다음·나중·위험)은 강조색과 분리한다. */
+  :root {
+    --bg: #f2f6f6;
+    --surface: #ffffff;
+    --ink: #122426;
+    --ink-2: #4d6366;
+    --line: #d5e1e1;
+    --line-strong: #b4c7c7;
+    --accent: #0b7a75;
+    --accent-soft: #d9efed;
+    --done: #2f7d4f;
+    --done-soft: #dcefe3;
+    --next: #9a5a00;
+    --next-soft: #fbebcf;
+    --later: #566a80;
+    --later-soft: #e3e9f0;
+    --risk: #a3402f;
+    --risk-soft: #f6dcd7;
+    --font-body: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", system-ui, sans-serif;
+    --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0d1517; --surface: #131e21; --ink: #e4eeee; --ink-2: #9db3b5;
+      --line: #24363a; --line-strong: #38514f;
+      --accent: #4fc2b9; --accent-soft: #14393a;
+      --done: #62c48d; --done-soft: #163326;
+      --next: #e3a950; --next-soft: #3a2b10;
+      --later: #94a9c0; --later-soft: #1f2b38;
+      --risk: #ea8a76; --risk-soft: #3d1f19;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0d1517; --surface: #131e21; --ink: #e4eeee; --ink-2: #9db3b5;
+    --line: #24363a; --line-strong: #38514f;
+    --accent: #4fc2b9; --accent-soft: #14393a;
+    --done: #62c48d; --done-soft: #163326;
+    --next: #e3a950; --next-soft: #3a2b10;
+    --later: #94a9c0; --later-soft: #1f2b38;
+    --risk: #ea8a76; --risk-soft: #3d1f19;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: 15px;
+    line-height: 1.65;
+    padding-block: 0 56px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+  /* 고정 내비 위쪽(상태 표시줄 영역)을 페이지 배경색으로 칠한다 */
+  body::before {
+    content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px);
+    background: var(--bg); z-index: 10;
+  }
+  .wrap { max-width: 980px; margin: 0 auto; }
+  h1, h2, h3, p { margin: 0; text-wrap: balance; }
+  p, li { text-wrap: pretty; }
+  a { color: var(--accent); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+  .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+  /* ---- 머리글 ---- */
+  .hero { padding-block: 40px 20px; display: grid; gap: 10px; }
+  .eyebrow { font: 500 12px/1.4 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+  h1 { font-size: clamp(28px, 6vw, 40px); line-height: 1.2; font-weight: 700; letter-spacing: -.01em; }
+  .lede { color: var(--ink-2); max-width: 62ch; }
+  .meta { font: 400 12.5px/1.6 var(--font-mono); color: var(--ink-2); display: flex; flex-wrap: wrap; gap: 4px 16px; }
+
+  /* ---- 고정 내비 ---- */
+  .nav {
+    position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5;
+    background: var(--bg); border-bottom: 1px solid var(--line);
+    padding-block: 10px; margin-bottom: 8px;
+    display: flex; flex-wrap: wrap; gap: 6px 6px;
+  }
+  .nav a {
+    font-size: 13px; text-decoration: none; color: var(--ink-2);
+    padding: 3px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface);
+  }
+  .nav a:hover { color: var(--accent); border-color: var(--accent); }
+
+  section { padding-block: 32px 8px; scroll-margin-top: 64px; }
+  h2 { font-size: 20px; line-height: 1.3; font-weight: 700; margin-bottom: 4px; }
+  .sub { color: var(--ink-2); font-size: 14px; margin-bottom: 14px; max-width: 66ch; }
+
+  /* ---- 요약 띠 ---- */
+  .summary {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+    padding: 20px; display: grid; gap: 20px;
+  }
+  .meters { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px 32px; }
+  .meter-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 8px; }
+  .meter-head b { font-weight: 600; }
+  .meter-head .num { font: 500 22px/1 var(--font-mono); font-variant-numeric: tabular-nums; }
+  .track { height: 10px; background: var(--line); border-radius: 5px; overflow: hidden; display: flex; }
+  .track i { display: block; height: 100%; background: var(--accent); }
+  .track i.range { background: repeating-linear-gradient(135deg, var(--accent) 0 3px, transparent 3px 6px); opacity: .55; }
+  .note { font-size: 12.5px; color: var(--ink-2); margin-top: 6px; }
+  .facts { display: flex; flex-wrap: wrap; gap: 8px 28px; border-top: 1px solid var(--line); padding-top: 16px; margin: 0; }
+  .facts div { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+  .facts dt { font-size: 13px; color: var(--ink-2); order: 2; }
+  .facts dd { margin: 0; font: 500 18px/1.2 var(--font-mono); font-variant-numeric: tabular-nums; order: 1; }
+  .facts small { font: 400 12px var(--font-body); color: var(--ink-2); }
+
+  /* ---- 영역별 진행 ---- */
+  .areas { border-bottom: 1px solid var(--line); }
+  .area {
+    display: grid; grid-template-columns: minmax(7.5rem, 10.5rem) 1fr 4.2rem; gap: 2px 16px;
+    align-items: center; padding-block: 14px; border-top: 1px solid var(--line);
+  }
+  .area h3 { font-size: 15px; font-weight: 600; }
+  .area .pct { font: 500 15px/1 var(--font-mono); text-align: right; font-variant-numeric: tabular-nums; }
+  .area .pct.word { font-family: var(--font-body); font-weight: 600; font-size: 14px; }
+  .area .bar { height: 8px; background: var(--line); border-radius: 4px; overflow: hidden; }
+  .area .bar i { display: block; height: 100%; border-radius: 4px; background: var(--accent); }
+  .area .bar i.high { background: var(--done); }
+  .area .bar i.low { background: var(--later); }
+  .area .detail { grid-column: 2 / 4; font-size: 13.5px; color: var(--ink-2); margin-top: 6px; }
+  .area .detail b { color: var(--ink); font-weight: 500; }
+
+  /* ---- 로드맵 ---- */
+  .lanes { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 24px 28px; }
+  .lane { min-width: 0; }
+  .lane-head { display: flex; align-items: center; gap: 10px; padding-bottom: 10px; border-bottom: 2px solid var(--lane); margin-bottom: 4px; }
+  .lane.p1 { --lane: var(--next); --lane-soft: var(--next-soft); }
+  .lane.p2 { --lane: var(--later); --lane-soft: var(--later-soft); }
+  .lane.p3 { --lane: var(--later); --lane-soft: var(--later-soft); }
+  .tag { font: 600 12px/1 var(--font-mono); padding: 5px 8px; border-radius: 4px; background: var(--lane-soft); color: var(--lane); }
+  .lane-head h3 { font-size: 15px; font-weight: 600; }
+  .tasks { list-style: none; margin: 0; padding: 0; }
+  .tasks li {
+    display: grid; grid-template-columns: 18px 1fr; gap: 10px; padding-block: 10px;
+    border-bottom: 1px solid var(--line); font-size: 14px;
+  }
+  .tasks li::before {
+    content: ""; width: 15px; height: 15px; margin-top: 4px; border: 1.5px solid var(--line-strong); border-radius: 3px;
+  }
+  .tasks li.done { color: var(--ink-2); }
+  .tasks li.done::before {
+    background: var(--done); border-color: var(--done);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.5 8.5l3 3 6-7' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-size: 100% 100%;
+  }
+  .tasks small { display: block; color: var(--ink-2); font-size: 12.5px; }
+
+  /* ---- 타임라인 (날짜가 곧 정보) ---- */
+  .timeline { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+  .timeline li { display: grid; grid-template-columns: 6.2rem 1fr; gap: 4px 20px; padding-block: 14px; border-bottom: 1px solid var(--line); }
+  .timeline time { font: 500 14px/1.6 var(--font-mono); color: var(--accent); }
+  .tl-body { min-width: 0; display: grid; gap: 8px; }
+  .tl-body p { font-size: 14px; }
+  .commits { display: flex; align-items: center; gap: 10px; }
+  .commits .track { height: 6px; width: 100%; max-width: 360px; flex: 1 1 auto; }
+  .commits span { font: 400 12px var(--font-mono); color: var(--ink-2); white-space: nowrap; }
+
+  /* ---- 기능 ---- */
+  .two { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 28px 36px; }
+  .two > div { min-width: 0; }
+  h3.col { font-size: 15px; font-weight: 600; padding-bottom: 8px; border-bottom: 2px solid var(--ink); }
+  .rows { margin: 0; padding: 0; list-style: none; }
+  .rows li { padding-block: 11px; border-bottom: 1px solid var(--line); display: grid; gap: 2px; font-size: 14px; }
+  .rows li b { font-weight: 600; }
+  .rows code { font: 400 12px/1.6 var(--font-mono); color: var(--ink-2); overflow-wrap: anywhere; }
+  .rows .rule { color: var(--ink-2); font-size: 13.5px; }
+
+  /* ---- 설계 결정 ---- */
+  .adrs { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--line); }
+  .adrs li { display: grid; grid-template-columns: 3.4rem 1fr; gap: 2px 16px; padding-block: 11px; border-bottom: 1px solid var(--line); font-size: 14px; }
+  .adrs .no { font: 500 13px/1.7 var(--font-mono); color: var(--accent); }
+  .adrs b { font-weight: 600; }
+  .adrs span { color: var(--ink-2); }
+
+  /* ---- 품질 ---- */
+  .issue-list { margin: 0; padding: 0; list-style: none; }
+  .issue-list li { padding-block: 11px; border-bottom: 1px solid var(--line); font-size: 14px; display: grid; gap: 4px; }
+  .chip { display: inline-block; font: 600 11.5px/1 var(--font-body); padding: 4px 8px; border-radius: 4px; width: max-content; }
+  .chip.risk { background: var(--risk-soft); color: var(--risk); }
+  .chip.later { background: var(--later-soft); color: var(--later); }
+  .chip.done { background: var(--done-soft); color: var(--done); }
+  .issue-list .fix { color: var(--ink-2); font-size: 13.5px; }
+
+  /* ---- 화면 ---- */
+  .shots { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 20px; }
+  .shots.wide { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); margin-top: 24px; }
+  figure { margin: 0; display: grid; gap: 8px; min-width: 0; align-content: start; }
+  figure img {
+    display: block; width: 100%; max-width: 260px; height: auto;
+    border: 1px solid var(--line-strong); border-radius: 12px; background: #fff;
+  }
+  .shots.wide figure img { max-width: 100%; border-radius: 8px; }
+  figcaption { font-size: 13px; color: var(--ink-2); }
+
+  footer { margin-top: 48px; padding-top: 16px; border-top: 1px solid var(--line); font-size: 13px; color: var(--ink-2); }
+  footer code { font: 400 12.5px var(--font-mono); color: var(--ink); }
+
+  /* ---- 좁은 화면 ---- */
+  @media (max-width: 560px) {
+    .hero { padding-block: 28px 14px; }
+    .summary { padding: 16px; }
+    .area { grid-template-columns: 1fr auto; }
+    .area .bar { grid-column: 1 / -1; order: 3; margin-top: 6px; }
+    .area .detail { grid-column: 1 / -1; order: 4; }
+    .timeline li { grid-template-columns: 1fr; }
+    .adrs li { grid-template-columns: 1fr; }
+  }
+</style>
+
+<div class="wrap">
+  <header class="hero">
+    <p class="eyebrow">개발 현황 · hairdesk</p>
+    <h1>hairdesk 개발 현황</h1>
+    <p class="lede">1인 미용사를 위한 예약·고객·매출 관리 서비스. 예약, 결제, 완료로 이어지는 핵심 업무 흐름과 월별 통계가 앱 화면까지 동작합니다. 인증, 배포, 모바일 빌드는 아직 시작 전입니다.</p>
+    <p class="meta"><span>2026-11-18 기준</span><span>마지막 기능 커밋 4310a0f</span><span>원본 docs/PROGRESS.md</span></p>
+  </header>
+
+  <nav class="nav" aria-label="구역 이동">
+    <a href="#progress">진행률</a>
+    <a href="#roadmap">로드맵</a>
+    <a href="#timeline">타임라인</a>
+    <a href="#features">구현된 기능</a>
+    <a href="#decisions">설계 결정</a>
+    <a href="#quality">품질</a>
+    <a href="#screens">화면</a>
+  </nav>
+
+  <main>
+    <section id="progress">
+      <h2>진행률</h2>
+      <p class="sub">정밀하게 측정한 값이 아니라 체감 추정입니다. 오차는 ±10%p 정도로 봅니다.</p>
+
+      <div class="summary">
+        <div class="meters">
+          <div>
+            <div class="meter-head"><b>포트폴리오로 보여줄 수 있는 MVP</b><span class="num">약 60%</span></div>
+            <div class="track" role="img" aria-label="MVP 약 60퍼센트"><i style="width:60%"></i></div>
+            <p class="note">핵심 흐름과 통계가 화면까지 동작하는 수준</p>
+          </div>
+          <div>
+            <div class="meter-head"><b>실제 출시까지</b><span class="num">35~40%</span></div>
+            <div class="track" role="img" aria-label="출시까지 35에서 40퍼센트"><i style="width:35%"></i><i class="range" style="width:5%"></i></div>
+            <p class="note">인증, 배포, 모바일 빌드가 아직 시작 전이라 낮게 봅니다</p>
+          </div>
+        </div>
+        <dl class="facts">
+          <div><dd>23</dd><dt>커밋</dt></div>
+          <div><dd>8</dd><dt>설계 결정(ADR)</dt></div>
+          <div><dd>27</dd><dt>백엔드 API</dt></div>
+          <div><dd>274</dd><dt>테스트 <small>백엔드 62 + 앱 212</small></dt></div>
+          <div><dd>6.5천</dd><dt>코드 줄 <small>테스트 제외</small></dt></div>
+        </dl>
+      </div>
+
+      <div class="areas" style="margin-top:24px">
+        <div class="area">
+          <h3>백엔드 기능 API</h3>
+          <div class="bar" role="img" aria-label="85퍼센트"><i class="high" style="width:85%"></i></div>
+          <span class="pct">85%</span>
+          <p class="detail"><b>완료</b> 메뉴, 고객, 예약, 매출, 통계 · <b>남은 것</b> 영업시간·휴무일, 매출 환불/취소, 고객 개인정보 파기</p>
+        </div>
+        <div class="area">
+          <h3>앱 화면</h3>
+          <div class="bar" role="img" aria-label="60퍼센트"><i style="width:60%"></i></div>
+          <span class="pct">60%</span>
+          <p class="detail"><b>완료</b> 홈, 일정, 예약, 결제, 통계, 시술 메뉴 · <b>남은 것</b> 고객 관리, 매출 등록(워크인), 휴무일 설정</p>
+        </div>
+        <div class="area">
+          <h3>테스트</h3>
+          <div class="bar" role="img" aria-label="양호"><i class="high" style="width:80%"></i></div>
+          <span class="pct word">양호</span>
+          <p class="detail"><b>완료</b> 백엔드 통합 62개, 앱 단위·위젯 212개 · <b>남은 것</b> 앱과 서버를 함께 돌리는 E2E 테스트</p>
+        </div>
+        <div class="area">
+          <h3>문서·포트폴리오</h3>
+          <div class="bar" role="img" aria-label="60퍼센트"><i style="width:60%"></i></div>
+          <span class="pct">60%</span>
+          <p class="detail"><b>완료</b> ADR 8개, README, 진행 현황 문서, 블로그 초안 #1 · <b>남은 것</b> 아키텍처 그림, 블로그 후속 글</p>
+        </div>
+        <div class="area">
+          <h3>인증·보안</h3>
+          <div class="bar" role="img" aria-label="0퍼센트"><i class="low" style="width:0%"></i></div>
+          <span class="pct">0%</span>
+          <p class="detail"><b>지금</b> 개발용 CORS(localhost 한정)만 있음 · <b>남은 것</b> 로그인, 사용자 구분, 운영용 CORS와 비밀값 관리</p>
+        </div>
+        <div class="area">
+          <h3>배포·운영</h3>
+          <div class="bar" role="img" aria-label="5퍼센트"><i class="low" style="width:5%"></i></div>
+          <span class="pct">5%</span>
+          <p class="detail"><b>지금</b> 개발용 Docker Compose만 있음 · <b>남은 것</b> 운영 서버, DB, HTTPS, 백업</p>
+        </div>
+        <div class="area">
+          <h3>모바일 앱화</h3>
+          <div class="bar" role="img" aria-label="5퍼센트"><i class="low" style="width:5%"></i></div>
+          <span class="pct">5%</span>
+          <p class="detail"><b>지금</b> Flutter 웹(Chrome)에서 동작 · <b>남은 것</b> Android·iOS 빌드 환경, 한글 폰트 포함</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="roadmap">
+      <h2>로드맵</h2>
+      <p class="sub">P1은 바로 다음에 할 일, P2는 그다음, P3는 출시 준비입니다. 체크된 항목만 끝난 일입니다.</p>
+      <div class="lanes">
+        <div class="lane p1">
+          <div class="lane-head"><span class="tag">P1</span><h3>남은 화면과 규칙</h3></div>
+          <ul class="tasks">
+            <li><span>공용 오류 화면(<code class="mono">ErrorView</code>) 위젯으로 정리<small>네 곳에 복사된 코드를 합치는 작은 리팩터링</small></span></li>
+            <li><span>고객 관리 화면<small>목록·검색, 상세, 수정, 방문 이력</small></span></li>
+            <li><span>매출 등록(워크인) 화면<small>예약 없이 온 손님 결제</small></span></li>
+            <li><span>영업시간·휴무일<small>백엔드 예약 차단 규칙, 설정 화면, 예약 폼 연동</small></span></li>
+          </ul>
+        </div>
+        <div class="lane p2">
+          <div class="lane-head"><span class="tag">P2</span><h3>품질과 완성도</h3></div>
+          <ul class="tasks">
+            <li><span>매출 환불·결제 취소와 정정 이력</span></li>
+            <li><span>고객 삭제와 개인정보 파기 정책<small>ADR 0002의 추후 과제</small></span></li>
+            <li><span>매출 내역 목록 화면<small>기간별 조회, 정정</small></span></li>
+            <li><span>한글 폰트 포함, 다크 모드·접근성 점검</span></li>
+            <li><span>앱과 서버를 함께 도는 E2E 테스트</span></li>
+          </ul>
+        </div>
+        <div class="lane p3">
+          <div class="lane-head"><span class="tag">P3</span><h3>출시 준비</h3></div>
+          <ul class="tasks">
+            <li><span>로그인(인증)과 사용자 구분, 운영용 CORS·비밀값</span></li>
+            <li><span>배포: 서버, DB, HTTPS, 백업, 모니터링</span></li>
+            <li><span>Android·iOS 빌드와 스토어 등록</span></li>
+            <li><span>개인정보 처리방침·약관<small>사업자 쪽 결정이 필요한 항목</small></span></li>
+            <li class="done"><span>README<small>소개, 스크린샷, 실행 방법</small></span></li>
+            <li><span>아키텍처 그림, 블로그 후속 글(#2~#5)</span></li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="timeline">
+      <h2>타임라인</h2>
+      <p class="sub">막대 길이는 그날 만든 커밋 수입니다(최대 8). 통계 화면은 데이터, 계산·상태, 화면 부품, 조립의 네 층으로 나눠 한 층씩 커밋했습니다.</p>
+      <ol class="timeline">
+        <li>
+          <time datetime="2026-09-29">09-29</time>
+          <div class="tl-body"><p>프로젝트 규칙(CLAUDE.md)과 기술 스택 ADR, Spring Boot 뼈대, 시술 메뉴 CRUD, Swagger UI</p>
+            <div class="commits"><div class="track"><i style="width:62.5%"></i></div><span>커밋 5</span></div></div>
+        </li>
+        <li>
+          <time datetime="2026-09-30">09-30</time>
+          <div class="tl-body"><p>고객 카드, 예약(겹침 방지), 매출, 통계 API. 백엔드 핵심 기능 완성</p>
+            <div class="commits"><div class="track"><i style="width:50%"></i></div><span>커밋 4</span></div></div>
+        </li>
+        <li>
+          <time datetime="2026-10-23">10-23</time>
+          <div class="tl-body"><p>Flutter 앱 시작. 메뉴, 일정, 예약 등록, 예약 상세(결제), 홈 화면과 개발용 샘플 데이터</p>
+            <div class="commits"><div class="track"><i style="width:100%"></i></div><span>커밋 8</span></div></div>
+        </li>
+        <li>
+          <time datetime="2026-10-30">10-30</time>
+          <div class="tl-body"><p>통계 화면 1층: 데이터(모델, 저장소)</p>
+            <div class="commits"><div class="track"><i style="width:12.5%"></i></div><span>커밋 1</span></div></div>
+        </li>
+        <li>
+          <time datetime="2026-11-18">11-18</time>
+          <div class="tl-body"><p>통계 화면 2~4층(계산·상태, 화면 부품, 조립) 완성과 4탭 구성. 진행 현황 문서, 블로그 초안, README 정리</p>
+            <div class="commits"><div class="track"><i style="width:62.5%"></i></div><span>커밋 5</span></div></div>
+        </li>
+      </ol>
+    </section>
+
+    <section id="features">
+      <h2>구현된 기능</h2>
+      <div class="two" style="margin-top:14px">
+        <div>
+          <h3 class="col">백엔드 API 27개</h3>
+          <ul class="rows">
+            <li><b>시술 메뉴</b><code>POST·GET·PUT /api/menus · POST /{id}/deactivate·activate</code><span class="rule">삭제 대신 판매 중지해서 과거 매출을 보존</span></li>
+            <li><b>고객</b><code>POST · GET(검색) · GET /{id} · PUT /api/customers</code><span class="rule">이름+번호 조합 중복 불가, 번호는 숫자만 저장, 문자 수신 동의 기본값 거부</span></li>
+            <li><b>예약</b><code>POST · GET(기간) · GET /{id} · PATCH /{id}/time · POST /{id}/cancel·complete·no-show</code><span class="rule">겹치는 시간은 DB 제약(EXCLUDE)이 최종으로 차단</span></li>
+            <li><b>매출</b><code>POST · GET(기간) · GET /summary · GET /{id} · PUT /api/sales</code><span class="rule">결제하면 예약이 자동 완료, 예약당 1건, 메뉴 이름·정가를 결제 시점으로 복사</span></li>
+            <li><b>통계</b><code>GET /api/stats/sales/daily·monthly·by-menu · /customers · /reservations</code><span class="rule">실시간 집계, 서울 날짜 기준, 신규/재방문·노쇼율 정의를 ADR에 명시</span></li>
+          </ul>
+        </div>
+        <div>
+          <h3 class="col">앱 화면 (하단 탭: 홈 · 일정 · 통계 · 메뉴)</h3>
+          <ul class="rows">
+            <li><b>홈</b><span class="rule">오늘 요약, 오늘·이번 달 매출, 처리 안 된 지난 예약 알림, 다음 예약(남은 시간), 빠른 실행 6칸</span></li>
+            <li><b>일정</b><span class="rule">날짜별 예약을 시간순으로, 상태별 색 구분, 날짜 이동과 달력 선택</span></li>
+            <li><b>예약 등록</b><span class="rule">고객 검색·신규 등록, 메뉴 선택(종료 시각 미리보기), 날짜·시간, 서버의 겹침 메시지 표시</span></li>
+            <li><b>예약 상세</b><span class="rule">결제(정가 기본값과 할인액 표시), 시간 변경, 취소, 노쇼</span></li>
+            <li><b>통계</b><span class="rule">월 이동, 요약과 전월 대비, 일별 막대 그래프, 결제수단 비중, 메뉴 순위, 고객·예약 현황</span></li>
+            <li><b>시술 메뉴</b><span class="rule">목록, 등록·수정 폼, 판매 중지와 재개</span></li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="decisions">
+      <h2>설계 결정</h2>
+      <p class="sub">중요한 결정은 이유와 검토한 대안까지 <span class="mono">docs/adr/</span>에 기록합니다.</p>
+      <ul class="adrs">
+        <li><span class="no">0001</span><div><b>기술 스택</b><br><span>Java·Spring Boot, PostgreSQL, Flutter, Flyway, Testcontainers</span></div></li>
+        <li><span class="no">0002</span><div><b>고객 식별과 개인정보</b><br><span>(이름+번호) UNIQUE, 번호는 숫자만 저장, 최소한만 수집</span></div></li>
+        <li><span class="no">0003</span><div><b>예약 겹침 방지</b><br><span>서비스에서 먼저 확인하고, DB의 EXCLUDE 제약이 최종 방어선</span></div></li>
+        <li><span class="no">0004</span><div><b>매출 기록</b><br><span>가격 스냅샷, 결제가 곧 완료, 이중 결제는 UNIQUE로 차단</span></div></li>
+        <li><span class="no">0005</span><div><b>통계 집계</b><br><span>실시간 집계, 읽기 전용 저장소, 신규·재방문·노쇼율 정의</span></div></li>
+        <li><span class="no">0006</span><div><b>프론트 구조와 상태</b><br><span>기능별 폴더, setState, 생성자 주입</span></div></li>
+        <li><span class="no">0007</span><div><b>통계 표시 규칙</b><br><span>같은 기간끼리 비교, 비교 대상이 0원이면 퍼센트 없음, 비율 합 100%</span></div></li>
+        <li><span class="no">0008</span><div><b>차트 구현</b><br><span>외부 차트 패키지 없이 기본 위젯으로</span></div></li>
+      </ul>
+    </section>
+
+    <section id="quality">
+      <h2>품질</h2>
+      <div class="two" style="margin-top:14px">
+        <div>
+          <h3 class="col">테스트가 잡은 문제들</h3>
+          <ul class="issue-list">
+            <li><span class="chip done">해결</span><span>예약 시간 변경 시 엔티티를 먼저 바꾸면 조회 직전 자동 flush로 DB 제약이 먼저 터짐. 변경 전에 겹침을 확인하도록 순서 수정</span></li>
+            <li><span class="chip done">해결</span><span>Dart 레코드 <span class="mono">.wait</span>가 에러를 감싸서 서버 메시지가 사라짐. <span class="mono">Future.wait</span> 목록 방식으로 교체</span></li>
+            <li><span class="chip done">해결</span><span>Dart <span class="mono">List.sort</span>가 같은 값의 순서를 보장하지 않음. 비교 기준에 원래 번호를 추가</span></li>
+            <li><span class="chip done">해결</span><span>가로 막대가 화면에 안 보임. 내용 없는 위젯은 <span class="mono">Row</span> 기본 정렬에서 높이가 0. 너비만 재던 테스트가 놓침</span></li>
+            <li><span class="chip done">해결</span><span>빠른 실행 칸 글자가 폰 폭에서 잘림. 높이를 폭 비율에서 고정값으로 변경</span></li>
+          </ul>
+          <p class="note" style="margin-top:10px">교훈: 시각 위젯은 폰 폭(375px)으로 직접 열어 눈으로 확인합니다.</p>
+        </div>
+        <div>
+          <h3 class="col">알려진 이슈와 위험</h3>
+          <ul class="issue-list">
+            <li><span class="chip risk">출시 전 필수</span><span><b>한글 글꼴</b> Flutter 웹이 한글 대체 폰트를 외부에서 내려받아 느린 네트워크에서 일부 글자가 □로 보일 수 있음</span><span class="fix">대응: 한글 폰트를 앱에 포함</span></li>
+            <li><span class="chip later">개발 중 불편</span><span><b>샘플 데이터 날짜</b> 넣은 날 기준 상대 날짜라 며칠 지나면 앞으로의 예약이 줄어듦</span><span class="fix">대응: 개발 DB를 비우고 다시 시작(전체 삭제 주의)</span></li>
+            <li><span class="chip later">정리 필요</span><span><b>중복 코드</b> 오류 화면이 홈·일정·메뉴·통계에 복사돼 있음</span><span class="fix">대응: 공용 위젯으로 정리(P1)</span></li>
+            <li><span class="chip later">미확인</span><span><b>접근성·다크 모드</b> 통계 위젯의 스크린 리더와 다크 모드를 아직 점검하지 않음</span></li>
+            <li><span class="chip later">기능 공백</span><span><b>환불·정정 이력</b> 매출은 정정만 가능하고 이력과 환불이 없음</span><span class="fix">대응: 백엔드 로드맵(P2)</span></li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="screens">
+      <h2>화면</h2>
+      <p class="sub">화면 속 이름과 전화번호는 모두 샘플 데이터입니다.</p>
+      <div class="shots">
+        <figure><img alt="통계 화면: 총 매출 1,188,000원, 지난달 같은 기간 대비 -31%, 일별 매출 막대 그래프와 결제수단 막대" src="{{IMG06}}"><figcaption>통계: 요약과 일별 그래프</figcaption></figure>
+        <figure><img alt="통계 화면: 메뉴 순위, 고객 신규 3명 재방문 8명, 예약 완료 22건과 노쇼율 12.0%" src="{{IMG07}}"><figcaption>통계: 메뉴, 고객, 예약 현황</figcaption></figure>
+        <figure><img alt="2026년 10월 통계: 전월 대비 +248%, 이번 달 버튼 표시" src="{{IMG08}}"><figcaption>통계: 지난 달 보기</figcaption></figure>
+      </div>
+      <div class="shots wide">
+        <figure><img alt="홈 화면: 오늘 매출, 다음 예약, 처리하지 않은 지난 예약 알림" src="{{IMG05}}"><figcaption>홈: 미처리 예약 알림과 다음 예약</figcaption></figure>
+        <figure><img alt="예약 등록 화면: 시간이 겹쳐 서버가 거절한 메시지가 빨간 배너로 표시됨" src="{{IMG03}}"><figcaption>예약 등록: 시간이 겹칠 때 서버 메시지</figcaption></figure>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p>이 페이지는 <code>docs/PROGRESS.md</code>의 2026-11-18 기준 스냅샷입니다. 이후 변경은 저장소의 문서가 기준이며, 이 페이지는 문서가 갱신될 때 다시 만듭니다.</p>
+  </footer>
+</div>

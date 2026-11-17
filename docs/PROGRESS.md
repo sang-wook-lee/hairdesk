@@ -173,3 +173,4 @@ C:\dev\flutter\bin\flutter test
 - **로드맵 체크**: 끝낸 항목은 `[x]`로 바꾸고, 완료한 것/타임라인 쪽으로 옮깁니다.
 - **숫자의 출처**: 커밋 수는 `git log --oneline | wc -l`, 테스트 수는 `./gradlew test`·`flutter test` 결과, 진행률은 체감 추정치입니다.
 - 설계 결정은 이 문서가 아니라 `docs/adr/`에 쓰고, 여기에는 표로 링크만 둡니다.
+- **진행 현황 웹 페이지**: `docs/progress-page/`에 원본 템플릿과 빌드 스크립트(`python docs/progress-page/build.py`)가 있습니다. 이 문서의 숫자·로드맵을 고쳤다면 템플릿의 같은 내용도 고친 뒤 다시 만들어 게시합니다. (게시된 페이지는 스냅샷입니다)
