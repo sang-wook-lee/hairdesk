@@ -41,3 +41,4 @@
 | [0005](0005-statistics.md) | 통계는 실시간 집계와 명시적 정의로 | 승인 |
 | [0006](0006-frontend-structure-and-state.md) | 프론트엔드 구조와 상태 관리 | 승인 |
 | [0007](0007-statistics-display-rules.md) | 통계 화면의 표시 규칙(같은 기간 비교, 0원 비교 불가, 합 100% 비율) | 승인 |
+| [0008](0008-charts-with-plain-widgets.md) | 차트는 외부 패키지 없이 기본 위젯으로 만든다 | 승인 |

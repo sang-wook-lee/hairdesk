@@ -39,3 +39,6 @@ String formatCountdown({required DateTime start, required DateTime end, required
   if (minutes < 1) return '곧 시작';
   return '${formatDuration(minutes)} 뒤';
 }
+
+/// 0.1075 → "10.8%", 0 → "0.0%", 1 → "100.0%". [rate]는 0.0~1.0 비율이다. (소수점 한 자리까지)
+String formatPercent(double rate) => '${(rate * 100).toStringAsFixed(1)}%';

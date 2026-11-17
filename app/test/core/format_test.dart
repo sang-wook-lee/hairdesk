@@ -55,4 +55,14 @@ void main() {
       expect(at('15:00:00'), '시간이 지났어요');
     });
   });
+
+  group('formatPercent', () {
+    test('0~1 비율을 소수점 한 자리 퍼센트로', () {
+      expect(formatPercent(0.1075), '10.8%');
+      expect(formatPercent(0.09090909), '9.1%');
+      expect(formatPercent(0), '0.0%');
+      expect(formatPercent(1), '100.0%');
+      expect(formatPercent(0.25), '25.0%');
+    });
+  });
 }
