@@ -106,6 +106,15 @@ powershell -ExecutionPolicy Bypass -File scripts\phone-preview.ps1
 - **같은 와이파이에서만** 됩니다. 개발 DB 포트(5432)도 같은 네트워크에 열려 있으니 **믿을 수 있는 네트워크(집)에서만** 쓰세요. 이유와 주의점은 [ADR 0009](docs/adr/0009-phone-preview-over-lan.md)에 있습니다.
 - Windows 방화벽 창이 뜨면 "개인 네트워크"만 허용하세요.
 
+**폰에서 앱 화면(하단 탭)은 뜨는데 계속 로딩만 돈다면** (서버 8080에만 못 닿는 경우)
+1. **PC의 네트워크 프로필이 "공용"인지** 확인합니다. 집 네트워크는 "개인"이어야 합니다. (설정 → 네트워크 및 인터넷 → 이더넷 → 네트워크 프로필 유형)
+2. 폰 브라우저에서 `http://<PC 주소>:8080/api/menus`가 열리는지 봅니다. 한글이 섞인 JSON이 보이면 서버까지 닿는 것입니다.
+3. 그래도 막히면 방화벽에 `java.exe`를 **차단**하는 규칙이 있을 수 있습니다. (Java가 처음 네트워크를 쓸 때 뜬 경고 창을 취소하면 자동으로 생깁니다.) 방화벽은 **차단 규칙이 허용 규칙보다 우선**하므로, 포트를 허용해 놓아도 소용이 없습니다. 관리자 PowerShell에서 확인하세요.
+   ```powershell
+   netsh advfirewall firewall show rule name=all dir=in verbose | findstr /i "java Block"
+   ```
+   일반 PowerShell의 `Get-NetFirewallRule`은 이 규칙들을 못 보여줄 수 있어서 `netsh`를 씁니다.
+
 개발용 DB를 처음부터 다시 채우려면 `backend/`에서 `docker compose down -v` 후 다시 `bootRun`을 실행합니다. **개발 DB의 모든 데이터가 지워집니다.**
 
 ## 개발 방식
