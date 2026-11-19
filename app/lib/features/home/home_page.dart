@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/error_message.dart';
+import '../../core/error_view.dart';
 import '../../core/format.dart';
 import '../../core/kst.dart';
 import '../customer/customer_repository.dart';
@@ -153,7 +154,7 @@ class _HomePageState extends State<HomePage> {
             return const Center(child: CircularProgressIndicator());
           }
           if (snapshot.hasError) {
-            return _ErrorView(message: errorMessage(snapshot.error!), onRetry: _reload);
+            return ErrorView(message: errorMessage(snapshot.error!), onRetry: _reload);
           }
           // 넓은 화면(웹, 태블릿)에서 내용이 끝없이 늘어지지 않게 폭을 제한하고 가운데에 둔다.
           return Align(
@@ -467,32 +468,6 @@ class _ActionTile extends StatelessWidget {
             const SizedBox(height: 6),
             Text(label, style: TextStyle(color: color)),
             if (soon) Text('준비 중', style: Theme.of(context).textTheme.labelSmall?.copyWith(color: color)),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ErrorView extends StatelessWidget {
-  const _ErrorView({required this.message, required this.onRetry});
-
-  final String message;
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.cloud_off, size: 48),
-            const SizedBox(height: 12),
-            Text(message, textAlign: TextAlign.center),
-            const SizedBox(height: 16),
-            FilledButton(onPressed: onRetry, child: const Text('다시 시도')),
           ],
         ),
       ),

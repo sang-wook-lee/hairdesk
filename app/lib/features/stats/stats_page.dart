@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/error_message.dart';
+import '../../core/error_view.dart';
 import '../../core/kst.dart';
 import 'stats_data.dart';
 import 'stats_month.dart';
@@ -126,7 +127,7 @@ class _StatsPageState extends State<StatsPage> {
                       return const Center(child: CircularProgressIndicator());
                     }
                     if (snapshot.hasError) {
-                      return _ErrorView(message: errorMessage(snapshot.error!), onRetry: _reload);
+                      return ErrorView(message: errorMessage(snapshot.error!), onRetry: _reload);
                     }
                     return RefreshIndicator(
                       onRefresh: _refresh,
@@ -170,32 +171,6 @@ class _StatsBody extends StatelessWidget {
         SectionCard(title: '예약', child: ReservationStatsBody(stats: data.reservations)),
         const SizedBox(height: 24),
       ],
-    );
-  }
-}
-
-class _ErrorView extends StatelessWidget {
-  const _ErrorView({required this.message, required this.onRetry});
-
-  final String message;
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.cloud_off, size: 48),
-            const SizedBox(height: 12),
-            Text(message, textAlign: TextAlign.center),
-            const SizedBox(height: 16),
-            FilledButton(onPressed: onRetry, child: const Text('다시 시도')),
-          ],
-        ),
-      ),
     );
   }
 }
