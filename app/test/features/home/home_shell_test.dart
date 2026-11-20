@@ -49,6 +49,20 @@ void main() {
     expect(find.textContaining('등록된 메뉴가 없어요'), findsOneWidget);
   });
 
+  testWidgets('메뉴 탭에서 "직원"으로 전환하면 직원 목록이 보인다 (직원 화면이 앱에 연결되어 있다)', (tester) async {
+    await pump(tester);
+
+    await tester.tap(find.text('메뉴').last); // 하단 탭
+    await tester.pumpAndSettle();
+    expect(find.text('시술 메뉴'), findsWidgets); // 제목과 전환 버튼
+
+    await tester.tap(find.text('직원').last); // 전환 버튼
+    await tester.pumpAndSettle();
+
+    expect(find.text('원장 (#1)'), findsOneWidget);
+    expect(find.text('직원 추가'), findsOneWidget);
+  });
+
   testWidgets('홈의 "시술 메뉴"와 "전체 보기"가 해당 탭으로 보내 준다', (tester) async {
     await pump(tester);
 

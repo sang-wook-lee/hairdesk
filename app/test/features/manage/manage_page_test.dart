@@ -29,6 +29,22 @@ void main() {
     expect(find.text('커트 · 1시간'), findsNothing);
   });
 
+  testWidgets('전환 버튼은 화면 폭을 꽉 채운다 (글자 폭 계산에 기대지 않는다)', (tester) async {
+    // 실제 폰 브라우저에서 버튼이 글자 폭만큼만 좁게 그려져 "시술 메뉴"가 두 줄로 잘린 적이 있다.
+    // 테스트의 글꼴은 브라우저의 한글 글꼴과 폭이 달라 글자 수로는 재현되지 않으므로,
+    // 버튼이 주어진 폭을 꽉 채워 각 칸이 충분히 넓은지를 직접 확인한다.
+    tester.view.physicalSize = const Size(375, 812);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await _pump(tester, FakeMenuRepository([menuOf(1, '커트')]),
+        FakeStaffRepository([staffOf(1, '원장', '원장')]));
+
+    final switcher = find.byWidgetPredicate((w) => w is SegmentedButton);
+    // 화면 폭 375에서 좌우 여백 16씩을 뺀 343이다.
+    expect(tester.getSize(switcher.first).width, 343);
+  });
+
   testWidgets('다시 "시술 메뉴"를 누르면 메뉴 목록으로 돌아온다', (tester) async {
     await _pump(tester, FakeMenuRepository([menuOf(1, '커트')]),
         FakeStaffRepository([staffOf(1, '원장', '원장')]));

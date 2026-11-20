@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../customer/customer_repository.dart';
-import '../menu/menu_list_page.dart';
+import '../manage/manage_page.dart';
 import '../menu/menu_repository.dart';
 import '../reservation/reservation_repository.dart';
 import '../reservation/schedule_page.dart';
@@ -11,7 +11,7 @@ import '../stats/stats_data.dart';
 import '../stats/stats_page.dart';
 import 'home_page.dart';
 
-/// 앱의 뼈대: 아래 탭으로 화면(홈 / 일정 / 통계 / 메뉴)을 오간다. 화면이 늘면 탭도 여기에 추가한다.
+/// 앱의 뼈대: 아래 탭으로 화면(홈 / 일정 / 통계 / 메뉴·직원)을 오간다. 화면이 늘면 탭도 여기에 추가한다.
 class HomeShell extends StatefulWidget {
   const HomeShell({
     super.key,
@@ -105,7 +105,8 @@ class _HomeShellState extends State<HomeShell> {
           _statsOpened
               ? StatsPage(loader: widget.statsLoader, refresh: _statsRefresh, clock: widget.clock)
               : const SizedBox.shrink(), // 아직 한 번도 안 열었다
-          MenuListPage(repository: widget.menuRepository),
+          // "메뉴" 탭: 위쪽 전환 버튼으로 시술 메뉴와 직원을 오간다.
+          ManagePage(menuRepository: widget.menuRepository, staffRepository: widget.staffRepository),
         ],
       ),
       bottomNavigationBar: NavigationBar(

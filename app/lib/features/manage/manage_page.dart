@@ -29,14 +29,20 @@ class _ManagePageState extends State<ManagePage> {
         preferredSize: const Size.fromHeight(56),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-          child: SegmentedButton<_Section>(
-            segments: const [
-              ButtonSegment(value: _Section.menu, label: Text('시술 메뉴')),
-              ButtonSegment(value: _Section.staff, label: Text('직원')),
-            ],
-            selected: {_section},
-            showSelectedIcon: false,
-            onSelectionChanged: (selection) => setState(() => _section = selection.first),
+          // width: infinity로 화면 폭을 꽉 채워서 두 칸이 절반씩 갖게 한다.
+          // 안 그러면 버튼이 글자 폭만큼만 좁게 계산되고, 실제 폰의 한글 글꼴은 그보다 넓어서
+          // "시술 메뉴"가 두 줄로 잘린다. (폰 폭에서 눈으로 확인하다 발견)
+          child: SizedBox(
+            width: double.infinity,
+            child: SegmentedButton<_Section>(
+              segments: const [
+                ButtonSegment(value: _Section.menu, label: Text('시술 메뉴')),
+                ButtonSegment(value: _Section.staff, label: Text('직원')),
+              ],
+              selected: {_section},
+              showSelectedIcon: false,
+              onSelectionChanged: (selection) => setState(() => _section = selection.first),
+            ),
           ),
         ),
       );
