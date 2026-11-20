@@ -12,9 +12,9 @@ Future<void> _pumpList(WidgetTester tester, FakeStaffRepository repository) asyn
 }
 
 void main() {
-  testWidgets('직원은 이름과 번호, 직책으로 보이고, 주인에게는 "주인" 표시가 붙는다', (tester) async {
+  testWidgets('직원은 이름과 번호, 직책으로 보이고, "주인" 같은 특별한 표시는 없다', (tester) async {
     final repo = FakeStaffRepository([
-      staffOf(1, '원장', '원장', owner: true),
+      staffOf(1, '원장', '원장'),
       staffOf(2, '이지수', '실장'),
     ]);
 
@@ -23,7 +23,8 @@ void main() {
     expect(find.text('원장 (#1)'), findsOneWidget);
     expect(find.text('이지수 (#2)'), findsOneWidget);
     expect(find.text('실장'), findsOneWidget);
-    expect(find.text('주인'), findsOneWidget); // 주인은 한 명뿐이라 표시도 하나
+    expect(find.text('주인'), findsNothing); // 모든 직원이 같은 규칙이다 (ADR 0011)
+    expect(find.byType(Chip), findsNothing);
   });
 
   testWidgets('이름과 직책이 같은 직원도 번호로 구별되어 둘 다 보인다', (tester) async {
@@ -40,7 +41,7 @@ void main() {
 
   testWidgets('근무 종료 직원은 기본으로 숨기고, 스위치를 켜면 "근무 종료"로 보여준다', (tester) async {
     final repo = FakeStaffRepository([
-      staffOf(1, '원장', '원장', owner: true),
+      staffOf(1, '원장', '원장'),
       staffOf(4, '서하윤', '인턴', active: false),
     ]);
 
@@ -73,7 +74,7 @@ void main() {
   });
 
   testWidgets('서버가 실패하면 오류 화면과 "다시 시도"가 나오고, 복구되면 다시 불러온다', (tester) async {
-    final repo = FakeStaffRepository([staffOf(1, '원장', '원장', owner: true)])
+    final repo = FakeStaffRepository([staffOf(1, '원장', '원장')])
       ..failOnFetch = ApiException(500, '서버 오류');
 
     await _pumpList(tester, repo);

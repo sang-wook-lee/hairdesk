@@ -13,7 +13,7 @@ Future<void> _pump(WidgetTester tester, FakeMenuRepository menus, FakeStaffRepos
 
 void main() {
   testWidgets('처음에는 시술 메뉴가 보이고, "직원"을 누르면 직원 목록으로 바뀐다', (tester) async {
-    final staff = FakeStaffRepository([staffOf(1, '원장', '원장', owner: true)]);
+    final staff = FakeStaffRepository([staffOf(1, '원장', '원장')]);
     await _pump(tester, FakeMenuRepository([menuOf(1, '커트')]), staff);
 
     expect(find.text('커트 · 1시간'), findsOneWidget);
@@ -31,7 +31,7 @@ void main() {
 
   testWidgets('다시 "시술 메뉴"를 누르면 메뉴 목록으로 돌아온다', (tester) async {
     await _pump(tester, FakeMenuRepository([menuOf(1, '커트')]),
-        FakeStaffRepository([staffOf(1, '원장', '원장', owner: true)]));
+        FakeStaffRepository([staffOf(1, '원장', '원장')]));
 
     await tester.tap(find.text('직원').last);
     await tester.pumpAndSettle();
@@ -44,7 +44,7 @@ void main() {
 
   testWidgets('전환했다 돌아와도 직원 화면의 "근무 종료 포함" 스위치가 그대로 남는다', (tester) async {
     final staff = FakeStaffRepository([
-      staffOf(1, '원장', '원장', owner: true),
+      staffOf(1, '원장', '원장'),
       staffOf(4, '서하윤', '인턴', active: false),
     ]);
     await _pump(tester, FakeMenuRepository([menuOf(1, '커트')]), staff);

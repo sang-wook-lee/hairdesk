@@ -8,7 +8,7 @@ import 'staff_repository.dart';
 
 /// 직원 목록 화면. 메뉴 목록 화면과 같은 모양이다. (근무 종료 직원은 스위치를 켜야 보인다)
 ///
-/// 지금은 보기와 등록·수정을 한다. 근무 종료·재개, 주인 지정은 다음 조각에서 붙인다.
+/// 지금은 보기와 등록·수정을 한다. 근무 종료·재개는 다음 조각에서 붙인다.
 class StaffListPage extends StatefulWidget {
   const StaffListPage({super.key, required this.repository, this.appBarBottom});
 
@@ -100,7 +100,7 @@ class _StaffListPageState extends State<StaffListPage> {
 }
 
 /// 직원 한 줄. 이름은 번호와 함께 보여준다 (동명이인 구별).
-/// 주인에게는 "주인" 표시를, 근무를 마친 직원은 회색과 "근무 종료"를 붙인다.
+/// 근무를 마친 직원은 회색과 "근무 종료"를 붙인다.
 class StaffTile extends StatelessWidget {
   const StaffTile({super.key, required this.staff, required this.onTap});
 
@@ -116,13 +116,6 @@ class StaffTile extends StatelessWidget {
         '${staff.position}${staff.active ? '' : ' · 근무 종료'}',
         style: TextStyle(color: textColor),
       ),
-      trailing: staff.owner
-          ? const Chip(
-              label: Text('주인'),
-              visualDensity: VisualDensity.compact,
-              side: BorderSide.none,
-            )
-          : null,
       onTap: onTap,
     );
   }

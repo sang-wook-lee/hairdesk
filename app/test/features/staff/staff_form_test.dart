@@ -16,7 +16,7 @@ Finder get _positionField => find.byType(TextFormField).at(1);
 
 void main() {
   testWidgets('직원 추가: 이름과 직책을 채워 저장하면 목록에 새 직원이 번호와 함께 나타난다', (tester) async {
-    final repo = FakeStaffRepository([staffOf(1, '원장', '원장', owner: true)]);
+    final repo = FakeStaffRepository([staffOf(1, '원장', '원장')]);
     await _pumpList(tester, repo);
 
     await tester.tap(find.text('직원 추가'));
@@ -32,7 +32,7 @@ void main() {
   });
 
   testWidgets('앞뒤 공백은 잘라서 서버로 보낸다', (tester) async {
-    final repo = FakeStaffRepository([staffOf(1, '원장', '원장', owner: true)]);
+    final repo = FakeStaffRepository([staffOf(1, '원장', '원장')]);
     await _pumpList(tester, repo);
 
     await tester.tap(find.text('직원 추가'));
@@ -47,7 +47,7 @@ void main() {
   });
 
   testWidgets('빠른 선택 버튼을 누르면 직책 칸에 그 직책이 채워진다 (직접 고쳐 써도 된다)', (tester) async {
-    final repo = FakeStaffRepository([staffOf(1, '원장', '원장', owner: true)]);
+    final repo = FakeStaffRepository([staffOf(1, '원장', '원장')]);
     await _pumpList(tester, repo);
 
     await tester.tap(find.text('직원 추가'));
@@ -82,7 +82,7 @@ void main() {
 
   testWidgets('직원을 누르면 수정 폼에 직원 번호와 기존 값이 채워져 있고, 고쳐 저장하면 반영된다', (tester) async {
     final repo = FakeStaffRepository([
-      staffOf(1, '원장', '원장', owner: true),
+      staffOf(1, '원장', '원장'),
       staffOf(2, '이지수', '실장'),
     ]);
     await _pumpList(tester, repo);
@@ -105,8 +105,8 @@ void main() {
     expect(repo.created, isEmpty); // 수정은 새 직원을 만들지 않는다
   });
 
-  testWidgets('수정 폼은 주인 여부나 근무 여부를 바꾸는 칸이 없다', (tester) async {
-    final repo = FakeStaffRepository([staffOf(1, '원장', '원장', owner: true)]);
+  testWidgets('수정 폼은 근무 여부를 바꾸는 칸이 없다', (tester) async {
+    final repo = FakeStaffRepository([staffOf(1, '원장', '원장')]);
     await _pumpList(tester, repo);
 
     await tester.tap(find.text('원장 (#1)'));
@@ -117,7 +117,7 @@ void main() {
   });
 
   testWidgets('이름이나 직책이 비어 있으면 안내하고 서버로 보내지 않는다', (tester) async {
-    final repo = FakeStaffRepository([staffOf(1, '원장', '원장', owner: true)]);
+    final repo = FakeStaffRepository([staffOf(1, '원장', '원장')]);
     await _pumpList(tester, repo);
 
     await tester.tap(find.text('직원 추가'));
@@ -139,7 +139,7 @@ void main() {
   });
 
   testWidgets('서버가 거절하면 메시지를 보여주고 폼에 머문다', (tester) async {
-    final repo = FakeStaffRepository([staffOf(1, '원장', '원장', owner: true)])
+    final repo = FakeStaffRepository([staffOf(1, '원장', '원장')])
       ..failOnSave = ApiException(400, '직책은 필수입니다.');
     await _pumpList(tester, repo);
 

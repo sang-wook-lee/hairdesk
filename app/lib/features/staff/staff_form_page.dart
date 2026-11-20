@@ -7,8 +7,8 @@ import 'staff_repository.dart';
 /// 직원 등록/수정 폼. [staff]가 null이면 새로 등록, 있으면 그 직원을 수정한다.
 /// 저장에 성공하면 true를 결과로 돌려주며 닫힌다. (목록 화면이 그걸 보고 새로고침한다)
 ///
-/// 입력은 이름과 직책 둘뿐이다. 주인 여부와 근무 여부는 이 폼에서 바꾸지 않는다.
-/// (목록의 "근무 종료/재개", "주인으로 지정" 동작으로만 바꾼다. 서버도 같은 규칙이다)
+/// 입력은 이름과 직책 둘뿐이다. 근무 여부는 이 폼에서 바꾸지 않는다.
+/// (목록의 "근무 종료/재개" 동작으로만 바꾼다. 서버도 같은 규칙이다)
 class StaffFormPage extends StatefulWidget {
   const StaffFormPage({super.key, required this.repository, this.staff});
 

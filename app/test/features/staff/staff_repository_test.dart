@@ -12,8 +12,8 @@ void main() {
   http.Response json(Object body, [int status = 200]) =>
       http.Response.bytes(utf8.encode(jsonEncode(body)), status);
 
-  const wonjang = {'id': 1, 'name': '원장', 'position': '원장', 'owner': true, 'active': true};
-  const jisu = {'id': 2, 'name': '이지수', 'position': '실장', 'owner': false, 'active': true};
+  const wonjang = {'id': 1, 'name': '원장', 'position': '원장', 'active': true};
+  const jisu = {'id': 2, 'name': '이지수', 'position': '실장', 'active': true};
 
   test('목록: 기본은 근무 중만, includeInactive=false를 보내고 순서를 그대로 유지한다', () async {
     late Uri requested;
@@ -27,7 +27,7 @@ void main() {
     expect(requested.path, '/api/staff');
     expect(requested.queryParameters, {'includeInactive': 'false'});
     expect(list.map((s) => s.name), ['원장', '이지수']);
-    expect(list.first.owner, isTrue);
+    expect(list.first.position, '원장');
   });
 
   test('목록: includeInactive를 켜면 그 값을 서버로 보낸다', () async {
@@ -88,30 +88,17 @@ void main() {
     expect(requests, ['POST /api/staff/2/deactivate', 'POST /api/staff/2/activate']);
   });
 
-  test('주인 지정: POST /api/staff/{번호}/make-owner', () async {
-    late http.Request sent;
-    final client = MockClient((request) async {
-      sent = request;
-      return http.Response('', 204);
-    });
-
-    await StaffRepository(ApiClient(httpClient: client)).makeOwner(2);
-
-    expect(sent.method, 'POST');
-    expect(sent.url.path, '/api/staff/2/make-owner');
-  });
-
-  test('서버가 거절하면(예: 주인을 근무 종료) 서버의 메시지를 담은 ApiException이 올라온다', () async {
+  test('서버가 거절하면(예: 없는 직원 번호) 서버의 메시지를 담은 ApiException이 올라온다', () async {
     final client = MockClient((request) async => json(
-          {'status': 409, 'detail': '매장 주인은 근무를 종료할 수 없습니다.'},
-          409,
+          {'status': 404, 'detail': '직원을 찾을 수 없습니다. 직원 번호=9'},
+          404,
         ));
 
     expect(
-      () => StaffRepository(ApiClient(httpClient: client)).setActive(1, active: false),
+      () => StaffRepository(ApiClient(httpClient: client)).setActive(9, active: false),
       throwsA(isA<ApiException>()
-          .having((e) => e.statusCode, 'statusCode', 409)
-          .having((e) => e.message, 'message', '매장 주인은 근무를 종료할 수 없습니다.')),
+          .having((e) => e.statusCode, 'statusCode', 404)
+          .having((e) => e.message, 'message', '직원을 찾을 수 없습니다. 직원 번호=9')),
     );
   });
 }

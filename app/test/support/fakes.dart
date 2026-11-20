@@ -104,9 +104,9 @@ class FakeStaffRepository implements StaffRepository {
   Future<Staff> create(StaffInput input) async {
     if (failOnSave != null) throw failOnSave!;
     created.add(input);
-    // 서버처럼: 새 직원은 번호가 이어지고 항상 주인이 아니며 근무 중이다. 이름·직책이 같아도 등록된다.
+    // 서버처럼: 새 직원은 번호가 이어지고 근무 중이다. 이름·직책이 같아도 등록된다.
     final nextId = staff.isEmpty ? 1 : staff.map((s) => s.id).reduce((a, b) => a > b ? a : b) + 1;
-    final newStaff = Staff(id: nextId, name: input.name, position: input.position, owner: false, active: true);
+    final newStaff = Staff(id: nextId, name: input.name, position: input.position, active: true);
     staff.add(newStaff);
     return newStaff;
   }
@@ -117,21 +117,18 @@ class FakeStaffRepository implements StaffRepository {
     updated.add((id, input));
     final index = staff.indexWhere((s) => s.id == id);
     final old = staff[index];
-    staff[index] = Staff(id: id, name: input.name, position: input.position, owner: old.owner, active: old.active);
+    staff[index] = Staff(id: id, name: input.name, position: input.position, active: old.active);
     return staff[index];
   }
 
-  // 아래는 다음 조각(근무 종료·재개, 주인 지정)에서 필요해질 때 채운다.
+  // 아래는 다음 조각(근무 종료·재개)에서 필요해질 때 채운다.
 
   @override
   Future<void> setActive(int id, {required bool active}) async => throw UnimplementedError();
-
-  @override
-  Future<void> makeOwner(int id) async => throw UnimplementedError();
 }
 
-Staff staffOf(int id, String name, String position, {bool owner = false, bool active = true}) {
-  return Staff(id: id, name: name, position: position, owner: owner, active: active);
+Staff staffOf(int id, String name, String position, {bool active = true}) {
+  return Staff(id: id, name: name, position: position, active: active);
 }
 
 // ---------------------------------------------------------------- 고객
