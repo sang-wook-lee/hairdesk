@@ -44,3 +44,4 @@
 | [0008](0008-charts-with-plain-widgets.md) | 차트는 외부 패키지 없이 기본 위젯으로 만든다 | 승인 |
 | [0009](0009-phone-preview-over-lan.md) | 개발 중 폰으로 보기: 사설 IP 출처만 CORS 허용 | 승인 |
 | [0010](0010-staff.md) | 직원(담당자) 개념 도입, 예약 겹침은 직원별로 | 승인 |
+| [0011](0011-remove-owner-require-staff.md) | owner 개념 삭제, 담당자는 항상 직접 지정 | 승인 |
