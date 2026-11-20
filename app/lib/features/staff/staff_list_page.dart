@@ -8,7 +8,7 @@ import 'staff_repository.dart';
 
 /// 직원 목록 화면. 메뉴 목록 화면과 같은 모양이다. (근무 종료 직원은 스위치를 켜야 보인다)
 ///
-/// 지금은 보기와 등록·수정을 한다. 근무 종료·재개는 다음 조각에서 붙인다.
+/// 보기, 등록·수정, 근무 종료·재개를 한다. 근무 종료는 실수로 누르기 쉬워서 확인 창을 거치고, 재개는 바로 처리한다.
 class StaffListPage extends StatefulWidget {
   const StaffListPage({super.key, required this.repository, this.appBarBottom});
 
@@ -49,6 +49,48 @@ class _StaffListPageState extends State<StaffListPage> {
     if (saved == true) _reload();
   }
 
+  /// 근무 종료/재개. 종료는 확인 창에서 "근무 종료"를 눌러야 서버로 간다.
+  /// (모든 직원이 같은 규칙이다. 마지막 근무 직원도 종료할 수 있고, 재개로 되돌린다. ADR 0011)
+  Future<void> _toggleActive(Staff staff) async {
+    final activate = !staff.active;
+    if (!activate) {
+      final confirmed = await _confirmDeactivate(staff);
+      if (confirmed != true) return;
+    }
+    try {
+      await widget.repository.setActive(staff.id, active: activate);
+      _reload();
+      if (!mounted) return;
+      _toast(activate ? '${staff.displayName}의 근무를 재개했어요' : '${staff.displayName}의 근무를 종료했어요');
+    } catch (e) {
+      // await 뒤에는 화면이 이미 닫혔을 수 있다. 닫힌 화면에 SnackBar를 띄우면 에러라서 확인한다.
+      if (!mounted) return;
+      _toast(errorMessage(e));
+    }
+  }
+
+  Future<bool?> _confirmDeactivate(Staff staff) {
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('근무를 종료할까요?'),
+        content: Text(
+          '${staff.displayName}에게는 새 예약을 받을 수 없게 돼요.\n'
+          '이미 잡힌 앞으로의 예약은 그대로 남아요.\n'
+          '언제든 다시 재개할 수 있어요.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('취소')),
+          FilledButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('근무 종료')),
+        ],
+      ),
+    );
+  }
+
+  void _toast(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -86,6 +128,7 @@ class _StaffListPageState extends State<StaffListPage> {
             itemBuilder: (context, index) => StaffTile(
               staff: staff[index],
               onTap: () => _openForm(staff: staff[index]),
+              onToggleActive: () => _toggleActive(staff[index]),
             ),
           );
         },
@@ -100,12 +143,18 @@ class _StaffListPageState extends State<StaffListPage> {
 }
 
 /// 직원 한 줄. 이름은 번호와 함께 보여준다 (동명이인 구별).
-/// 근무를 마친 직원은 회색과 "근무 종료"를 붙인다.
+/// 근무를 마친 직원은 회색과 "근무 종료"를 붙인다. 오른쪽 ⋮ 메뉴에서 수정과 근무 종료/재개를 한다.
 class StaffTile extends StatelessWidget {
-  const StaffTile({super.key, required this.staff, required this.onTap});
+  const StaffTile({
+    super.key,
+    required this.staff,
+    required this.onTap,
+    required this.onToggleActive,
+  });
 
   final Staff staff;
   final VoidCallback onTap; // 누르면 수정 폼을 연다
+  final VoidCallback onToggleActive; // 근무 종료(근무 중일 때) / 재개(근무 종료일 때)
 
   @override
   Widget build(BuildContext context) {
@@ -115,6 +164,16 @@ class StaffTile extends StatelessWidget {
       subtitle: Text(
         '${staff.position}${staff.active ? '' : ' · 근무 종료'}',
         style: TextStyle(color: textColor),
+      ),
+      trailing: PopupMenuButton<String>(
+        onSelected: (value) {
+          if (value == 'edit') onTap();
+          if (value == 'toggle') onToggleActive();
+        },
+        itemBuilder: (context) => [
+          const PopupMenuItem(value: 'edit', child: Text('수정')),
+          PopupMenuItem(value: 'toggle', child: Text(staff.active ? '근무 종료' : '근무 재개')),
+        ],
       ),
       onTap: onTap,
     );

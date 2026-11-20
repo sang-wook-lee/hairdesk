@@ -91,6 +91,8 @@ class FakeStaffRepository implements StaffRepository {
   final List<(int, StaffInput)> updated = []; // (직원 번호, 보낸 값)
   ApiException? failOnFetch;
   ApiException? failOnSave; // 등록·수정이 실패하게 만든다
+  ApiException? failOnToggle; // 근무 종료·재개가 실패하게 만든다
+  final List<(int, bool)> toggled = []; // setActive가 받은 (직원 번호, 근무 여부)
   final List<bool> fetchedWithInactive = []; // fetchAll이 받은 includeInactive 값을 순서대로 기록
 
   @override
@@ -121,10 +123,14 @@ class FakeStaffRepository implements StaffRepository {
     return staff[index];
   }
 
-  // 아래는 다음 조각(근무 종료·재개)에서 필요해질 때 채운다.
-
   @override
-  Future<void> setActive(int id, {required bool active}) async => throw UnimplementedError();
+  Future<void> setActive(int id, {required bool active}) async {
+    if (failOnToggle != null) throw failOnToggle!;
+    toggled.add((id, active));
+    final index = staff.indexWhere((s) => s.id == id);
+    final old = staff[index];
+    staff[index] = Staff(id: old.id, name: old.name, position: old.position, active: active);
+  }
 }
 
 Staff staffOf(int id, String name, String position, {bool active = true}) {
