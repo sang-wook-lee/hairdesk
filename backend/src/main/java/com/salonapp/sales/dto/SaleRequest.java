@@ -14,6 +14,9 @@ import java.time.OffsetDateTime;
  *               고객/메뉴는 예약에서 가져온다. customerId/menuId는 보내지 않는다.
  *  2) 워크인:   { "customerId": 1, "menuId": 2, "paymentMethod": "CASH" }
  *
+ * staffId(담당자)는 워크인에서만 보낼 수 있고, 생략하면 매장 주인이다. (ADR 0010)
+ * 예약 건의 담당자는 예약의 담당자를 따르므로 함께 보내면 거부한다.
+ *
  * amount를 생략하면 메뉴 정가, paidAt을 생략하면 지금.
  * 숫자를 int가 아닌 Integer로 받는 이유: "생략(null)"과 "0원"을 구분하기 위해서.
  * (값이 없을 때 int는 0이 되어 버려서 "무료"와 "안 보냄"을 구별할 수 없다)
@@ -25,6 +28,7 @@ public record SaleRequest(
         Long reservationId,
         Long customerId,
         Long menuId,
+        Long staffId,
         @PositiveOrZero Integer amount,
         @NotNull PaymentMethod paymentMethod,
         OffsetDateTime paidAt,

@@ -50,12 +50,14 @@ class SaleApiTest {
     @Autowired StaffRepository staffRepository;
 
     Staff owner;        // 마이그레이션이 만든 기본 직원(원장)
+    Staff designer;     // 두 번째 직원
     Customer customer;
     TreatmentMenu cut;  // 정가 20000원
 
     @BeforeEach
     void setUp() {
         owner = staffRepository.findByOwnerTrue().orElseThrow();
+        designer = staffRepository.save(new Staff("이지수", "디자이너"));
         customer = customerRepository.save(new Customer("김민지", "01012345678", null, null, false));
         cut = menuRepository.save(new TreatmentMenu("커트", MenuCategory.CUT, 20000, 60, 1));
     }
@@ -274,8 +276,135 @@ class SaleApiTest {
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 
+    // ---- 담당자(직원) — ADR 0010 ----
+
+    @Test
+    @DisplayName("워크인 매출에 직원을 지정하면 응답에 담당자 정보가 담긴다")
+    void walkInWithStaff() throws Exception {
+        mockMvc.perform(post("/api/sales")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(walkInJson(designer.getId())))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.staffId").value(designer.getId()))
+                .andExpect(jsonPath("$.staffName").value("이지수"))
+                .andExpect(jsonPath("$.staffPosition").value("디자이너"));
+    }
+
+    @Test
+    @DisplayName("워크인 매출에 직원을 생략하면 매장 주인이 담당자가 된다")
+    void walkInDefaultsToOwner() throws Exception {
+        mockMvc.perform(post("/api/sales")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(walkInJson(null)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.staffId").value(owner.getId()))
+                .andExpect(jsonPath("$.staffName").value("원장"));
+    }
+
+    @Test
+    @DisplayName("없는 직원으로는 워크인 매출을 등록할 수 없다 (404)")
+    void walkInUnknownStaff() throws Exception {
+        mockMvc.perform(post("/api/sales")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(walkInJson(999_999L)))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("근무를 마친 직원도 워크인 매출의 담당자로 기록할 수 있다 (이미 끝난 시술을 적는 것이므로)")
+    void walkInInactiveStaffAllowed() throws Exception {
+        designer.deactivate();
+
+        mockMvc.perform(post("/api/sales")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(walkInJson(designer.getId())))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.staffName").value("이지수"));
+    }
+
+    @Test
+    @DisplayName("예약으로 결제하면 매출의 담당자는 예약의 담당자를 따른다")
+    void reservationPaymentFollowsReservationStaff() throws Exception {
+        Reservation reservation = reservationRepository.saveAndFlush(
+                new Reservation(customer, cut, designer, Instant.parse("2026-10-01T05:00:00Z"), null));
+
+        mockMvc.perform(post("/api/sales")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"reservationId":%d,"paymentMethod":"CARD"}
+                                """.formatted(reservation.getId())))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.staffId").value(designer.getId()))
+                .andExpect(jsonPath("$.staffName").value("이지수"));
+    }
+
+    @Test
+    @DisplayName("예약으로 결제하면서 staffId를 함께 보내면 400 (예약의 담당자와 어느 쪽이 맞는지 모호하다)")
+    void reservationPaymentWithStaffIdRejected() throws Exception {
+        Reservation reservation = bookedReservation("2026-10-01T05:00:00Z");
+
+        mockMvc.perform(post("/api/sales")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"reservationId":%d,"staffId":%d,"paymentMethod":"CARD"}
+                                """.formatted(reservation.getId(), designer.getId())))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("기간 조회 응답에도 각 매출의 담당자 정보가 들어 있다")
+    void listIncludesStaff() throws Exception {
+        mockMvc.perform(post("/api/sales")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(walkInJson(null, "2026-10-01T10:00:00+09:00")))
+                .andExpect(status().isCreated());
+        mockMvc.perform(post("/api/sales")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(walkInJson(designer.getId(), "2026-10-01T11:00:00+09:00")))
+                .andExpect(status().isCreated());
+
+        // 최신순이라 11시(이지수)가 먼저
+        mockMvc.perform(get("/api/sales").param("from", "2026-10-01").param("to", "2026-10-01"))
+                .andExpect(jsonPath("$", hasSize(2)))
+                .andExpect(jsonPath("$[0].staffName").value("이지수"))
+                .andExpect(jsonPath("$[0].staffPosition").value("디자이너"))
+                .andExpect(jsonPath("$[1].staffName").value("원장"));
+    }
+
+    @Test
+    @DisplayName("매출을 정정해도 담당자는 그대로다")
+    void correctionKeepsStaff() throws Exception {
+        String body = mockMvc.perform(post("/api/sales")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(walkInJson(designer.getId())))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        long id = Long.parseLong(body.replaceAll(".*\"id\":(\\d+).*", "$1"));
+
+        mockMvc.perform(put("/api/sales/{id}", id)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"amount":15000,"paymentMethod":"CASH","paidAt":"2026-10-01T12:00:00+09:00"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.amount").value(15000))
+                .andExpect(jsonPath("$.staffId").value(designer.getId()));
+    }
+
     private Reservation bookedReservation(String startAt) {
         return reservationRepository.saveAndFlush(new Reservation(customer, cut, owner, Instant.parse(startAt), null));
+    }
+
+    /** 워크인 매출 요청 JSON. staffId가 null이면 키를 아예 보내지 않는다(= 생략). */
+    private String walkInJson(Long staffId) {
+        return walkInJson(staffId, "2026-10-01T10:00:00+09:00");
+    }
+
+    private String walkInJson(Long staffId, String paidAt) {
+        String staff = staffId == null ? "" : "\"staffId\":" + staffId + ",";
+        return """
+                {"customerId":%d,"menuId":%d,%s"amount":20000,"paymentMethod":"CARD","paidAt":"%s"}
+                """.formatted(customer.getId(), cut.getId(), staff, paidAt);
     }
 
     private long paySale(TreatmentMenu menu, int amount, String paidAt) throws Exception {

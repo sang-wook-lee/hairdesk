@@ -59,6 +59,10 @@ public class SaleService {
         if (request.customerId() != null || request.menuId() != null) {
             throw new IllegalArgumentException("예약으로 결제할 때는 customerId/menuId를 보내지 않습니다. 예약의 고객과 메뉴가 사용됩니다.");
         }
+        // 담당자도 마찬가지다. 예약의 담당자가 곧 이 결제의 담당자다.
+        if (request.staffId() != null) {
+            throw new IllegalArgumentException("예약으로 결제할 때는 staffId를 보내지 않습니다. 예약의 담당자가 사용됩니다.");
+        }
         Reservation reservation = reservationRepository.findById(request.reservationId())
                 .orElseThrow(() -> new NotFoundException("예약을 찾을 수 없습니다. id=" + request.reservationId()));
 
@@ -88,10 +92,21 @@ public class SaleService {
         TreatmentMenu menu = menuRepository.findById(request.menuId())
                 .orElseThrow(() -> new NotFoundException("메뉴를 찾을 수 없습니다. id=" + request.menuId()));
         // 판매 중지 메뉴도 매출은 받을 수 있게 둔다: 이미 시술이 끝난 뒤 기록하는 것이라 막을 이유가 없다.
-        // TODO(직원 3단계): 요청의 staffId를 받도록 바꾼다(생략하면 주인). 그 전까지는 항상 매장 주인이 담당한다.
-        Staff staff = staffRepository.findByOwnerTrue()
-                .orElseThrow(() -> new IllegalStateException("매장 주인이 지정되어 있지 않습니다."));
+        Staff staff = findStaff(request.staffId());
         return Sale.walkIn(customer, menu, staff, request.amount(), request.paymentMethod(), paidAt, request.memo());
+    }
+
+    /**
+     * 워크인 매출의 담당자. 생략하면 매장 주인, 있으면 그 직원(없으면 404).
+     * 근무를 마친 직원도 허용한다: 매출은 이미 끝난 시술을 기록하는 것이다. (판매 중지 메뉴를 허용하는 것과 같은 이유)
+     */
+    private Staff findStaff(Long staffId) {
+        if (staffId == null) {
+            return staffRepository.findByOwnerTrue()
+                    .orElseThrow(() -> new IllegalStateException("매장 주인이 지정되어 있지 않습니다."));
+        }
+        return staffRepository.findById(staffId)
+                .orElseThrow(() -> new NotFoundException("직원을 찾을 수 없습니다. 직원 번호=" + staffId));
     }
 
     /** 기간(from~to, 양쪽 포함, 서울 기준 날짜)의 매출을 최신순으로 */

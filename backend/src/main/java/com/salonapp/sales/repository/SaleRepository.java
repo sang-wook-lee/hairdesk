@@ -22,6 +22,7 @@ public interface SaleRepository extends JpaRepository<Sale, Long> {
     @Query("""
             select s from Sale s
             join fetch s.customer
+            join fetch s.staff
             where s.paidAt >= :from and s.paidAt < :to
             order by s.paidAt desc, s.id desc
             """)

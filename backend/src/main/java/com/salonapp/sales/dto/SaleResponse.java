@@ -13,6 +13,9 @@ public record SaleResponse(
         String customerName,
         Long menuId,
         String menuName,         // 결제 당시 이름
+        Long staffId,            // 담당자 (이름은 복사해 두지 않고 현재 직원 정보를 보여준다)
+        String staffName,
+        String staffPosition,
         int price,               // 결제 당시 정가
         int amount,              // 실제 받은 금액
         int discount,            // price - amount
@@ -29,6 +32,9 @@ public record SaleResponse(
                 sale.getCustomer().getName(),
                 sale.getMenu().getId(),
                 sale.getMenuName(),
+                sale.getStaff().getId(),
+                sale.getStaff().getName(),
+                sale.getStaff().getPosition(),
                 sale.getPrice(),
                 sale.getAmount(),
                 sale.getDiscount(),
