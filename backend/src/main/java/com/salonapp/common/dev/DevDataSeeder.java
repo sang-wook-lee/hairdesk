@@ -27,13 +27,17 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.HashSet;
 import java.util.Random;
+import java.util.Set;
 
 /**
  * 개발용 샘플 데이터. 서버가 켜질 때 DB가 "비어 있으면" 채운다.
  *
  * - "local" 프로필에서만 동작한다. (./gradlew bootRun 이 켜 준다. 테스트와 운영에는 절대 돌지 않는다)
  * - 메뉴나 고객이 하나라도 있으면 아무것도 하지 않는다. 그래서 매번 켜도 중복되지 않고, 직접 넣은 데이터도 안전하다.
+ * - 직원은 4명이다: 원장(주인), 이지수 실장, 박민수 디자이너, 서하윤 인턴(30일 전까지 일하고 근무 종료).
+ *   직원마다 하루 3타임을 따로 채우므로 같은 시간대에 여러 직원의 예약이 함께 보인다. (ADR 0010)
  * - 날짜는 "오늘 기준 상대 날짜"다: 과거 60일 이력 + 앞으로 일주일 예약. 며칠 뒤에 켜도 홈 화면이 비지 않는다.
  * - 엔티티와 DB 제약을 그대로 거치므로, 서비스 규칙(예약 겹침 불가 등)에 어긋난 가짜 데이터는 들어가지 않는다.
  * - 난수는 고정 시드라서, 같은 날 새로 채우면 항상 같은 모양이 나온다.
@@ -53,6 +57,9 @@ public class DevDataSeeder implements ApplicationRunner {
 
     private static final int HISTORY_DAYS = 60;
     private static final int FUTURE_DAYS = 7;
+
+    /** 인턴이 일한 마지막 날: 오늘로부터 이만큼 전까지. 그 뒤로는 예약을 받지 않는다. */
+    private static final int INTERN_LAST_DAY_OFFSET = -30;
 
     private static final String[] MEMOS = {"뿌리 볼륨 원함", "두피 민감", "지난번보다 짧게", "앞머리 포함", "염색 알레르기 주의"};
 
@@ -76,8 +83,9 @@ public class DevDataSeeder implements ApplicationRunner {
         Random random = new Random(42);
         List<TreatmentMenu> menus = seedMenus();
         List<Customer> customers = seedCustomers();
-        // TODO(직원 5단계): 직원 여러 명을 만들어 나눠 배정한다. 그 전까지는 모두 매장 주인(원장)이 담당한다.
-        Staff owner = staffRepository.findByOwnerTrue().orElseThrow();
+        List<Staff> staff = seedStaff();
+        Staff owner = staff.get(0);
+        Staff intern = staff.get(3);
         List<TreatmentMenu> sellable = menus.stream().filter(TreatmentMenu::isActive).toList();
 
         LocalDate today = now.atZone(SEOUL).toLocalDate();
@@ -88,22 +96,35 @@ public class DevDataSeeder implements ApplicationRunner {
                 continue; // 일요일은 쉰다
             }
             for (int hour : SLOT_HOURS) {
-                // 과거일수록 바쁘고(65%), 미래는 절반쯤 찼다고 본다(50%)
-                int fillRate = offset < 0 ? 65 : 50;
-                if (random.nextInt(100) >= fillRate) {
-                    continue; // 빈 타임
+                // 같은 시간대에 이미 예약이 있는 고객. 샘플에서는 한 사람이 두 직원에게 동시에 잡히지 않게 한다.
+                Set<Long> bookedThisSlot = new HashSet<>();
+                for (Staff worker : staff) {
+                    if (worker == intern && offset > INTERN_LAST_DAY_OFFSET) {
+                        continue; // 인턴은 그만둔 뒤로 예약을 받지 않는다
+                    }
+                    // 원장은 더 바쁘다. 과거일수록 바쁘고, 미래는 조금 덜 찼다고 본다.
+                    int fillRate = worker == owner ? (offset < 0 ? 65 : 50) : (offset < 0 ? 50 : 40);
+                    if (random.nextInt(100) >= fillRate) {
+                        continue; // 빈 타임
+                    }
+                    TreatmentMenu menu = sellable.get(random.nextInt(sellable.size()));
+                    Customer customer = pickCustomer(customers, -offset, random);
+                    if (!bookedThisSlot.add(customer.getId())) {
+                        continue;
+                    }
+                    Instant start = day.atTime(hour, 0).atZone(SEOUL).toInstant();
+                    Reservation reservation = new Reservation(
+                            customer, menu, worker, start, random.nextInt(100) < 15 ? MEMOS[random.nextInt(MEMOS.length)] : null);
+                    settle(reservation, now, random);
+                    reservations++;
                 }
-                TreatmentMenu menu = sellable.get(random.nextInt(sellable.size()));
-                Customer customer = pickCustomer(customers, -offset, random);
-                Instant start = day.atTime(hour, 0).atZone(SEOUL).toInstant();
-                Reservation reservation = new Reservation(
-                        customer, menu, owner, start, random.nextInt(100) < 15 ? MEMOS[random.nextInt(MEMOS.length)] : null);
-                settle(reservation, now, random);
-                reservations++;
             }
         }
-        log.info("개발용 샘플 데이터를 넣었습니다: 메뉴 {}개, 고객 {}명, 예약 {}건 (오늘 기준 과거 {}일 ~ 앞으로 {}일)",
-                menus.size(), customers.size(), reservations, HISTORY_DAYS, FUTURE_DAYS);
+        // 근무 종료는 예약을 다 만든 뒤에 한다. (근무를 마친 직원에게는 새 예약을 만들 수 없다)
+        intern.deactivate();
+        staffRepository.save(intern);
+        log.info("개발용 샘플 데이터를 넣었습니다: 메뉴 {}개, 고객 {}명, 직원 {}명, 예약 {}건 (오늘 기준 과거 {}일 ~ 앞으로 {}일)",
+                menus.size(), customers.size(), staff.size(), reservations, HISTORY_DAYS, FUTURE_DAYS);
     }
 
     /**
@@ -164,6 +185,21 @@ public class DevDataSeeder implements ApplicationRunner {
         ended.deactivate(); // 판매 중지된 메뉴도 하나 있어야 "판매 중지 포함" 화면을 볼 수 있다
         menus.add(ended);
         return menuRepository.saveAll(menus);
+    }
+
+    /**
+     * 직원 4명. 맨 앞은 마이그레이션(V6)이 만든 원장(주인)이고, 나머지를 새로 만든다.
+     * 순서가 의미를 가진다: [0] 원장, [1] 실장, [2] 디자이너, [3] 인턴(나중에 근무 종료).
+     */
+    private List<Staff> seedStaff() {
+        Staff owner = staffRepository.findByOwnerTrue().orElseThrow();
+        List<Staff> staff = new ArrayList<>();
+        staff.add(owner);
+        staff.addAll(staffRepository.saveAll(List.of(
+                new Staff("이지수", "실장"),
+                new Staff("박민수", "디자이너"),
+                new Staff("서하윤", "인턴"))));
+        return staff;
     }
 
     private List<Customer> seedCustomers() {

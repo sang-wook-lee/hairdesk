@@ -9,6 +9,8 @@ import com.salonapp.reservation.domain.ReservationStatus;
 import com.salonapp.reservation.repository.ReservationRepository;
 import com.salonapp.sales.domain.Sale;
 import com.salonapp.sales.repository.SaleRepository;
+import com.salonapp.staff.domain.Staff;
+import com.salonapp.staff.repository.StaffRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,6 +25,8 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -46,6 +50,7 @@ class DevDataSeederTest {
     @Autowired CustomerRepository customerRepository;
     @Autowired ReservationRepository reservationRepository;
     @Autowired SaleRepository saleRepository;
+    @Autowired StaffRepository staffRepository;
     @Autowired MockMvc mockMvc;
 
     @Test
@@ -106,6 +111,52 @@ class DevDataSeederTest {
     }
 
     @Test
+    @DisplayName("직원은 4명이고, 주인은 원장 1명이며, 근무를 마친 직원이 1명 있다")
+    void seedsStaff() {
+        List<Staff> staff = staffRepository.findAll();
+
+        assertThat(staff).hasSize(4);
+        assertThat(staff).filteredOn(Staff::isOwner).extracting(Staff::getName).containsExactly("원장");
+        assertThat(staff).filteredOn(s -> !s.isActive()).extracting(Staff::getName).containsExactly("서하윤");
+    }
+
+    @Test
+    @Transactional(readOnly = true) // 예약·매출의 담당자는 지연 로딩이라 트랜잭션 안에서만 읽을 수 있다
+    @DisplayName("예약은 모든 직원에게 나뉘어 있고, 근무를 마친 직원은 지난 이력만 있다")
+    void reservationsSpreadAcrossStaff() {
+        List<Reservation> all = reservationRepository.findAll();
+        Instant now = Instant.now();
+
+        assertThat(all).extracting(r -> r.getStaff().getName())
+                .contains("원장", "이지수", "박민수", "서하윤");
+        assertThat(all).filteredOn(r -> !r.getStaff().isActive())
+                .isNotEmpty()
+                .allMatch(r -> r.getEndAt().isBefore(now));
+    }
+
+    @Test
+    @Transactional(readOnly = true)
+    @DisplayName("같은 시간에 서로 다른 직원의 예약이 함께 있는 때가 있다 (직원별 일정)")
+    void sameTimeDifferentStaff() {
+        Map<Instant, Long> staffCountByStart = reservationRepository.findAll().stream()
+                .collect(Collectors.groupingBy(Reservation::getStartAt,
+                        Collectors.mapping(r -> r.getStaff().getId(), Collectors.collectingAndThen(
+                                Collectors.toSet(), set -> (long) set.size()))));
+
+        assertThat(staffCountByStart.values()).anyMatch(count -> count >= 2);
+    }
+
+    @Test
+    @Transactional(readOnly = true)
+    @DisplayName("매출의 담당자는 그 예약의 담당자와 같다")
+    void saleStaffMatchesReservationStaff() {
+        List<Sale> sales = saleRepository.findAll();
+
+        assertThat(sales).isNotEmpty()
+                .allMatch(s -> s.getStaff().getId().equals(s.getReservation().getStaff().getId()));
+    }
+
+    @Test
     @DisplayName("통계 화면이 쓸 값이 나온다: 최근 30일 매출, 신규/재방문 고객, 노쇼율")
     void statsHaveValues() throws Exception {
         LocalDate today = LocalDate.now(SEOUL);
@@ -130,6 +181,9 @@ class DevDataSeederTest {
         String reservationStats = mockMvc.perform(get("/api/stats/reservations")
                         .param("from", today.minusDays(60).toString()).param("to", today.toString()))
                 .andReturn().getResponse().getContentAsString();
-        assertThat(reservationStats).doesNotContain("\"noShowRate\":0.0");
+        // 글자로 "0.0"이 없는지 보면 0.068 같은 값도 걸린다. 숫자로 꺼내서 0보다 큰지 본다.
+        java.util.regex.Matcher rate = java.util.regex.Pattern.compile("\"noShowRate\":([0-9.Ee-]+)").matcher(reservationStats);
+        assertThat(rate.find()).isTrue();
+        assertThat(Double.parseDouble(rate.group(1))).isGreaterThan(0.0);
     }
 }
