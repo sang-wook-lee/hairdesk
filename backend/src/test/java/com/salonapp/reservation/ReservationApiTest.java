@@ -25,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -46,6 +47,7 @@ class ReservationApiTest {
     @Autowired StaffRepository staffRepository;
 
     Staff owner;     // 마이그레이션이 만든 기본 직원(원장). 모든 테스트가 이 직원에서 시작한다.
+    Staff designer;  // 두 번째 직원
     Customer customer;
     TreatmentMenu cut;   // 60분
     TreatmentMenu perm;  // 120분
@@ -53,6 +55,7 @@ class ReservationApiTest {
     @BeforeEach
     void setUp() {
         owner = staffRepository.findByOwnerTrue().orElseThrow();
+        designer = staffRepository.save(new Staff("이지수", "디자이너"));
         customer = customerRepository.save(new Customer("김민지", "01012345678", null, null, false));
         cut = menuRepository.save(new TreatmentMenu("커트", MenuCategory.CUT, 20000, 60, 1));
         perm = menuRepository.save(new TreatmentMenu("펌", MenuCategory.PERM, 80000, 120, 2));
@@ -228,7 +231,122 @@ class ReservationApiTest {
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 
-    /** API로 예약을 만들고 id를 돌려준다. */
+    // ---- 담당자(직원) — ADR 0010 ----
+
+    @Test
+    @DisplayName("직원을 지정해 예약하면 응답에 담당자 정보가 담긴다")
+    void createWithStaff() throws Exception {
+        mockMvc.perform(post("/api/reservations")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(reservationJson(cut.getId(), "2026-10-01T14:00:00+09:00", designer.getId())))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.staffId").value(designer.getId()))
+                .andExpect(jsonPath("$.staffName").value("이지수"))
+                .andExpect(jsonPath("$.staffPosition").value("디자이너"));
+    }
+
+    @Test
+    @DisplayName("직원을 생략하면 매장 주인이 담당자가 된다")
+    void staffDefaultsToOwner() throws Exception {
+        mockMvc.perform(post("/api/reservations")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(reservationJson(cut.getId(), "2026-10-01T14:00:00+09:00")))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.staffId").value(owner.getId()))
+                .andExpect(jsonPath("$.staffName").value("원장"));
+    }
+
+    @Test
+    @DisplayName("없는 직원으로는 예약할 수 없다 (404)")
+    void unknownStaff() throws Exception {
+        mockMvc.perform(post("/api/reservations")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(reservationJson(cut.getId(), "2026-10-01T14:00:00+09:00", 999_999L)))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("근무를 마친 직원에게는 예약할 수 없다 (409)")
+    void inactiveStaffRejected() throws Exception {
+        designer.deactivate();
+
+        mockMvc.perform(post("/api/reservations")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(reservationJson(cut.getId(), "2026-10-01T14:00:00+09:00", designer.getId())))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    @DisplayName("같은 직원의 시간이 겹치면 409이고, 어느 직원 시간이 찼는지 메시지에 나온다")
+    void sameStaffOverlapRejectedWithName() throws Exception {
+        book(cut, "2026-10-01T14:00:00+09:00", designer.getId());
+
+        mockMvc.perform(post("/api/reservations")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(reservationJson(cut.getId(), "2026-10-01T14:30:00+09:00", designer.getId())))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value(containsString("이지수(#" + designer.getId() + ")")));
+    }
+
+    @Test
+    @DisplayName("다른 직원이면 같은 시간에도 예약할 수 있다")
+    void differentStaffSameTimeAllowed() throws Exception {
+        book(cut, "2026-10-01T14:00:00+09:00");                       // 원장 14:00~15:00
+
+        mockMvc.perform(post("/api/reservations")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(reservationJson(cut.getId(), "2026-10-01T14:00:00+09:00", designer.getId())))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.staffName").value("이지수"));
+    }
+
+    @Test
+    @DisplayName("같은 고객이 같은 시간에 서로 다른 직원에게 예약할 수 있다 (가족 손님)")
+    void sameCustomerTwoStaffAllowed() throws Exception {
+        book(cut, "2026-10-01T14:00:00+09:00");
+        book(cut, "2026-10-01T14:00:00+09:00", designer.getId()); // 같은 고객(customer), 같은 시간, 다른 직원
+
+        mockMvc.perform(get("/api/reservations").param("from", "2026-10-01").param("to", "2026-10-01"))
+                .andExpect(jsonPath("$", hasSize(2)))
+                .andExpect(jsonPath("$[0].customerId").value(customer.getId()))
+                .andExpect(jsonPath("$[1].customerId").value(customer.getId()));
+    }
+
+    @Test
+    @DisplayName("시간 변경도 그 예약의 담당자 기준이다: 다른 직원의 시간대로는 옮길 수 있고, 같은 직원의 시간대로는 409")
+    void rescheduleUsesReservationStaff() throws Exception {
+        book(cut, "2026-10-01T14:00:00+09:00");                              // 원장 14:00~15:00
+        long designerReservation = book(cut, "2026-10-01T10:00:00+09:00", designer.getId());
+
+        // 이지수 예약을 원장이 일하는 시간(14:00)으로 옮긴다 → 직원이 달라 허용
+        mockMvc.perform(patch("/api/reservations/{id}/time", designerReservation)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"startAt\":\"2026-10-01T14:00:00+09:00\"}"))
+                .andExpect(status().isOk());
+
+        book(cut, "2026-10-01T16:00:00+09:00", designer.getId());            // 이지수 16:00~17:00
+        // 이지수 예약(14:00)을 이지수의 16:00대로 옮기려 하면 같은 직원이라 거부
+        mockMvc.perform(patch("/api/reservations/{id}/time", designerReservation)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"startAt\":\"2026-10-01T16:30:00+09:00\"}"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value(containsString("이지수")));
+    }
+
+    @Test
+    @DisplayName("기간 조회 응답에도 각 예약의 담당자 정보가 들어 있다")
+    void listIncludesStaff() throws Exception {
+        book(cut, "2026-10-01T10:00:00+09:00");
+        book(cut, "2026-10-01T11:00:00+09:00", designer.getId());
+
+        mockMvc.perform(get("/api/reservations").param("from", "2026-10-01").param("to", "2026-10-01"))
+                .andExpect(jsonPath("$", hasSize(2)))
+                .andExpect(jsonPath("$[0].staffName").value("원장"))
+                .andExpect(jsonPath("$[1].staffName").value("이지수"))
+                .andExpect(jsonPath("$[1].staffPosition").value("디자이너"));
+    }
+
+    /** API로 예약을 만들고 id를 돌려준다. 담당자는 생략(= 매장 주인). */
     private long book(TreatmentMenu menu, String startAt) throws Exception {
         String body = mockMvc.perform(post("/api/reservations")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -238,9 +356,25 @@ class ReservationApiTest {
         return Long.parseLong(body.replaceAll(".*\"id\":(\\d+).*", "$1"));
     }
 
+    /** 담당자를 지정해 예약하고 id를 돌려준다. */
+    private long book(TreatmentMenu menu, String startAt, Long staffId) throws Exception {
+        String body = mockMvc.perform(post("/api/reservations")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(reservationJson(menu.getId(), startAt, staffId)))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        return Long.parseLong(body.replaceAll(".*\"id\":(\\d+).*", "$1"));
+    }
+
     private String reservationJson(Long menuId, String startAt) {
         return """
                 {"customerId":%d,"menuId":%d,"startAt":"%s","memo":"첫 방문"}
                 """.formatted(customer.getId(), menuId, startAt);
+    }
+
+    private String reservationJson(Long menuId, String startAt, Long staffId) {
+        return """
+                {"customerId":%d,"menuId":%d,"staffId":%d,"startAt":"%s","memo":"첫 방문"}
+                """.formatted(customer.getId(), menuId, staffId, startAt);
     }
 }

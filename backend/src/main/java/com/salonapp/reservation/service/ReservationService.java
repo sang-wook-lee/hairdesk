@@ -48,15 +48,15 @@ public class ReservationService {
             throw new IllegalArgumentException("판매 중지된 메뉴입니다: " + menu.getName());
         }
 
-        // TODO(직원 2단계): 요청의 staffId를 받도록 바꾼다. 그 전까지는 항상 매장 주인이 담당한다.
-        Staff staff = staffRepository.findByOwnerTrue()
-                .orElseThrow(() -> new IllegalStateException("매장 주인이 지정되어 있지 않습니다."));
+        Staff staff = findStaff(request.staffId());
 
+        // 근무를 마친 직원이면 이 생성자가 IllegalStateException(409)으로 거부한다.
         Reservation reservation = new Reservation(customer, menu, staff, request.startAt().toInstant(), request.memo());
         // 먼저 확인해서 친절한 메시지로 409를 준다. 동시 요청은 DB의 EXCLUDE 제약이 최종적으로 막는다.
-        if (reservationRepository.existsByStatusInAndStartAtLessThanAndEndAtGreaterThan(
-                OCCUPYING, reservation.getEndAt(), reservation.getStartAt())) {
-            throw new ConflictException("해당 시간에 이미 예약이 있습니다.");
+        // 겹침은 "같은 직원끼리만" 본다. 다른 직원은 같은 시간에도 예약할 수 있다. (ADR 0010)
+        if (reservationRepository.existsByStaffIdAndStatusInAndStartAtLessThanAndEndAtGreaterThan(
+                staff.getId(), OCCUPYING, reservation.getEndAt(), reservation.getStartAt())) {
+            throw new ConflictException(overlapMessage(staff));
         }
         // saveAndFlush: 제약 위반을 커밋 시점이 아니라 여기서 바로 확인한다.
         return ReservationResponse.from(reservationRepository.saveAndFlush(reservation));
@@ -83,9 +83,11 @@ public class ReservationService {
         Instant newEnd = newStart.plus(Duration.between(reservation.getStartAt(), reservation.getEndAt()));
         // 엔티티를 바꾸기 "전에" 확인한다. 바꾼 뒤에 조회하면 Hibernate가 조회 직전에 UPDATE를 먼저 보내서,
         // 친절한 메시지 대신 DB 제약 위반이 먼저 터진다. 자기 자신은 IdNot으로 뺀다.
-        if (reservationRepository.existsByStatusInAndStartAtLessThanAndEndAtGreaterThanAndIdNot(
-                OCCUPYING, newEnd, newStart, id)) {
-            throw new ConflictException("해당 시간에 이미 예약이 있습니다.");
+        // 담당자는 바꾸지 않으므로, 이 예약의 담당자 기준으로 확인한다.
+        Staff staff = reservation.getStaff();
+        if (reservationRepository.existsByStaffIdAndStatusInAndStartAtLessThanAndEndAtGreaterThanAndIdNot(
+                staff.getId(), OCCUPYING, newEnd, newStart, id)) {
+            throw new ConflictException(overlapMessage(staff));
         }
         reservation.reschedule(newStart);
         reservationRepository.flush();
@@ -111,6 +113,21 @@ public class ReservationService {
         Reservation reservation = getReservation(id);
         reservation.markNoShow();
         return ReservationResponse.from(reservation);
+    }
+
+    /** staffId를 생략하면 매장 주인. 있으면 그 직원(없으면 404). */
+    private Staff findStaff(Long staffId) {
+        if (staffId == null) {
+            return staffRepository.findByOwnerTrue()
+                    .orElseThrow(() -> new IllegalStateException("매장 주인이 지정되어 있지 않습니다."));
+        }
+        return staffRepository.findById(staffId)
+                .orElseThrow(() -> new NotFoundException("직원을 찾을 수 없습니다. 직원 번호=" + staffId));
+    }
+
+    /** 직원이 여러 명이면 누구의 시간이 찼는지 알려 줘야 한다. 동명이인이 있을 수 있어 번호도 같이 적는다. */
+    private String overlapMessage(Staff staff) {
+        return staff.getName() + "(#" + staff.getId() + ")은(는) 해당 시간에 이미 예약이 있습니다.";
     }
 
     private Reservation getReservation(Long id) {
