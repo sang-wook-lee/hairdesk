@@ -1,3 +1,5 @@
+import '../staff/staff.dart';
+
 /// 예약 상태. 서버(ReservationStatus)와 같은 값을 쓴다.
 enum ReservationStatus {
   booked('BOOKED', '예약'),
@@ -23,6 +25,9 @@ class Reservation {
     required this.customerPhone,
     required this.menuId,
     required this.menuName,
+    required this.staffId,
+    required this.staffName,
+    required this.staffPosition,
     required this.startAt,
     required this.endAt,
     required this.status,
@@ -35,6 +40,12 @@ class Reservation {
   final String customerPhone; // 숫자만 (01012345678)
   final int menuId;
   final String menuName;
+  final int staffId; // 담당자 (직원 번호)
+  final String staffName;
+  final String staffPosition; // 직책
+
+  /// 담당자를 "이름 (#번호)"로. 동명이인이 있을 수 있어 번호를 함께 보여준다.
+  String get staffDisplayName => formatStaffName(staffName, staffId);
 
   /// 절대 시각(UTC). 화면에 보여줄 때 core/kst.dart로 서울 시각으로 바꾼다.
   final DateTime startAt;
@@ -50,6 +61,9 @@ class Reservation {
       customerPhone: json['customerPhone'] as String,
       menuId: json['menuId'] as int,
       menuName: json['menuName'] as String,
+      staffId: json['staffId'] as int,
+      staffName: json['staffName'] as String,
+      staffPosition: json['staffPosition'] as String,
       // "2026-10-01T14:00:00+09:00" → 오프셋을 반영한 UTC 시각
       startAt: DateTime.parse(json['startAt'] as String),
       endAt: DateTime.parse(json['endAt'] as String),

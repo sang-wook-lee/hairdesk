@@ -84,6 +84,7 @@ void main() {
     expect(h.reservations.created.single, {
       'customerId': 1,
       'menuId': 1,
+      'staffId': null, // 담당자를 고르지 않았다 → 서버가 매장 주인으로 처리
       'startAt': '2026-10-01T10:00:00+09:00',
       'memo': '뒷머리 짧게',
     });

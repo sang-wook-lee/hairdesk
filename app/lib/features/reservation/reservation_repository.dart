@@ -10,16 +10,19 @@ class ReservationRepository {
 
   /// 예약 등록. [startAt]은 "서울에서 시계가 가리키는 시각"(예: DateTime(2026, 10, 23, 14, 0))이다.
   /// 종료 시각은 보내지 않는다: 서버가 메뉴 소요시간으로 계산한다.
-  /// 그 시간에 이미 예약이 있으면 서버가 409(ApiException)를 준다.
+  /// [staffId]는 담당자의 직원 번호다. 생략하면 서버가 매장 주인으로 예약한다.
+  /// 그 직원의 그 시간에 이미 예약이 있으면 서버가 409(ApiException)를 준다. 다른 직원의 예약과는 겹쳐도 된다.
   Future<Reservation> create({
     required int customerId,
     required int menuId,
+    int? staffId,
     required DateTime startAt,
     String? memo,
   }) async {
     final json = await _api.postJson('/api/reservations', body: {
       'customerId': customerId,
       'menuId': menuId,
+      'staffId': ?staffId, // 생략하면 키를 보내지 않는다 → 서버가 매장 주인으로 처리
       'startAt': formatKstIso(startAt),
       'memo': ?memo, // null이면 키 자체를 보내지 않는다 (Dart 3.8의 null-aware 요소)
     });

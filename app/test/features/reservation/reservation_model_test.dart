@@ -10,6 +10,9 @@ void main() {
       'customerPhone': '01012345678',
       'menuId': 1,
       'menuName': '커트',
+      'staffId': 2,
+      'staffName': '이지수',
+      'staffPosition': '실장',
       'startAt': '2026-10-01T14:00:00+09:00',
       'endAt': '2026-10-01T15:00:00+09:00',
       'status': 'NO_SHOW',
@@ -19,6 +22,11 @@ void main() {
     expect(reservation.customerName, '김민지');
     expect(reservation.status, ReservationStatus.noShow);
     expect(reservation.memo, isNull);
+    expect(reservation.staffId, 2);
+    expect(reservation.staffName, '이지수');
+    expect(reservation.staffPosition, '실장');
+    // 동명이인이 있을 수 있어 화면에는 번호를 함께 적는다
+    expect(reservation.staffDisplayName, '이지수 (#2)');
     // 14:00(+09:00)은 UTC 05:00 — 같은 순간이다.
     expect(reservation.startAt, DateTime.utc(2026, 10, 1, 5));
     expect(reservation.endAt.difference(reservation.startAt), const Duration(hours: 1));

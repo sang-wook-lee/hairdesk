@@ -185,6 +185,9 @@ class FakeReservationRepository implements ReservationRepository {
       customerPhone: r.customerPhone,
       menuId: r.menuId,
       menuName: r.menuName,
+      staffId: r.staffId,
+      staffName: r.staffName,
+      staffPosition: r.staffPosition,
       startAt: startAt ?? r.startAt,
       endAt: endAt ?? r.endAt,
       status: status ?? r.status,
@@ -196,6 +199,7 @@ class FakeReservationRepository implements ReservationRepository {
   Future<Reservation> create({
     required int customerId,
     required int menuId,
+    int? staffId,
     required DateTime startAt,
     String? memo,
   }) async {
@@ -203,7 +207,13 @@ class FakeReservationRepository implements ReservationRepository {
     final customer = customers.firstWhere((c) => c.id == customerId);
     final menu = menus.firstWhere((m) => m.id == menuId);
     final iso = formatKstIso(startAt);
-    created.add({'customerId': customerId, 'menuId': menuId, 'startAt': iso, 'memo': memo});
+    created.add({
+      'customerId': customerId,
+      'menuId': menuId,
+      'staffId': staffId,
+      'startAt': iso,
+      'memo': memo,
+    });
 
     final start = DateTime.parse(iso);
     final reservation = Reservation(
@@ -213,6 +223,10 @@ class FakeReservationRepository implements ReservationRepository {
       customerPhone: customer.phone,
       menuId: menuId,
       menuName: menu.name,
+      // 담당자를 고르지 않으면 서버처럼 매장 주인(직원 번호 1, 원장)으로 본다.
+      staffId: staffId ?? 1,
+      staffName: staffId == null ? '원장' : '직원$staffId',
+      staffPosition: staffId == null ? '원장' : '디자이너',
       startAt: start,
       endAt: start.add(Duration(minutes: menu.durationMinutes)),
       status: ReservationStatus.booked,
@@ -231,6 +245,9 @@ Reservation reservationOf(
   String end, {
   ReservationStatus status = ReservationStatus.booked,
   String? memo,
+  int staffId = 1,
+  String staffName = '원장',
+  String staffPosition = '원장',
 }) {
   return Reservation(
     id: id,
@@ -239,6 +256,9 @@ Reservation reservationOf(
     customerPhone: '01012345678',
     menuId: 1,
     menuName: menu,
+    staffId: staffId,
+    staffName: staffName,
+    staffPosition: staffPosition,
     startAt: DateTime.parse(start),
     endAt: DateTime.parse(end),
     status: status,

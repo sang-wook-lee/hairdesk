@@ -23,6 +23,9 @@ void main() {
           'customerPhone': '01012345678',
           'menuId': 2,
           'menuName': '펌',
+          'staffId': 1,
+          'staffName': '원장',
+          'staffPosition': '원장',
           'startAt': '2026-10-23T14:00:00+09:00',
           'endAt': '2026-10-23T16:00:00+09:00',
           'status': 'BOOKED',
@@ -47,6 +50,43 @@ void main() {
     });
     expect(created.id, 7);
     expect(created.menuName, '펌');
+    expect(created.staffName, '원장'); // 담당자를 안 보내면 서버가 매장 주인으로 예약한 응답이 온다
+  });
+
+  test('예약 등록: 담당자를 고르면 staffId를 함께 보낸다', () async {
+    late http.Request sent;
+    final client = MockClient((request) async {
+      sent = request;
+      return http.Response.bytes(
+        utf8.encode(jsonEncode({
+          'id': 8,
+          'customerId': 1,
+          'customerName': '김민지',
+          'customerPhone': '01012345678',
+          'menuId': 2,
+          'menuName': '펌',
+          'staffId': 3,
+          'staffName': '박민수',
+          'staffPosition': '디자이너',
+          'startAt': '2026-10-23T14:00:00+09:00',
+          'endAt': '2026-10-23T16:00:00+09:00',
+          'status': 'BOOKED',
+          'memo': null,
+        })),
+        201,
+      );
+    });
+
+    final created = await ReservationRepository(ApiClient(httpClient: client)).create(
+      customerId: 1,
+      menuId: 2,
+      staffId: 3,
+      startAt: DateTime(2026, 10, 23, 14, 0),
+    );
+
+    expect(jsonDecode(utf8.decode(sent.bodyBytes)), containsPair('staffId', 3));
+    expect(created.staffId, 3);
+    expect(created.staffPosition, '디자이너');
   });
 
   test('고객 검색: keyword와 페이지 크기를 보내고 content만 꺼낸다', () async {
