@@ -4,6 +4,7 @@ import 'package:hairdesk/core/api_client.dart';
 import 'package:hairdesk/core/kst.dart';
 import 'package:hairdesk/features/reservation/reservation.dart';
 import 'package:hairdesk/features/reservation/schedule_page.dart';
+import 'package:hairdesk/features/staff/staff.dart';
 
 import '../../support/fakes.dart';
 
@@ -11,14 +12,17 @@ Future<FakeReservationRepository> _pump(
   WidgetTester tester,
   List<Reservation> reservations, {
   DateTime? date,
+  List<Staff>? staffList,
+  ApiException? staffFails,
 }) async {
   final repo = FakeReservationRepository(reservations);
+  final staff = FakeStaffRepository(staffList ?? [staffOf(1, '원장', '원장')])..failOnFetch = staffFails;
   await tester.pumpWidget(MaterialApp(
     home: SchedulePage(
       repository: repo,
       customerRepository: FakeCustomerRepository([]),
       menuRepository: FakeMenuRepository([]),
-      staffRepository: FakeStaffRepository([staffOf(1, '원장', '원장')]),
+      staffRepository: staff,
       saleRepository: FakeSaleRepository(),
       initialDate: date ?? DateTime(2026, 10, 1),
     ),
@@ -146,5 +150,59 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('김민지 · 커트'), findsOneWidget);
+  });
+
+  // ---- 담당자 표시 (직원이 2명 이상일 때만) ----
+
+  final twoReservations = [
+    reservationOf(1, '김민지', '커트', '2026-10-01T14:00:00+09:00', '2026-10-01T15:00:00+09:00',
+        staffId: 1, staffName: '원장', staffPosition: '원장'),
+    reservationOf(2, '이하늘', '펌', '2026-10-01T14:00:00+09:00', '2026-10-01T16:00:00+09:00',
+        staffId: 2, staffName: '이지수', staffPosition: '실장'),
+  ];
+
+  testWidgets('직원이 2명 이상이면 같은 시간의 예약도 누구 담당인지 보인다', (tester) async {
+    await _pump(tester, twoReservations,
+        staffList: [staffOf(1, '원장', '원장'), staffOf(2, '이지수', '실장')]);
+
+    expect(find.text('담당 원장 (#1)'), findsOneWidget);
+    expect(find.text('담당 이지수 (#2)'), findsOneWidget);
+  });
+
+  testWidgets('직원이 1명이면 담당자를 보여주지 않는다', (tester) async {
+    await _pump(tester, [twoReservations.first]);
+
+    expect(find.text('김민지 · 커트'), findsOneWidget);
+    expect(find.textContaining('담당'), findsNothing);
+  });
+
+  testWidgets('직원 목록을 못 불러와도 일정은 그대로 보이고 담당자만 빠진다', (tester) async {
+    await _pump(tester, twoReservations,
+        staffList: [staffOf(1, '원장', '원장'), staffOf(2, '이지수', '실장')],
+        staffFails: ApiException(500, '서버 오류'));
+
+    expect(find.text('김민지 · 커트'), findsOneWidget);
+    expect(find.text('이하늘 · 펌'), findsOneWidget);
+    expect(find.textContaining('담당'), findsNothing);
+    expect(find.text('서버 오류'), findsNothing); // 일정 화면이 오류 화면으로 바뀌지 않는다
+  });
+
+  testWidgets('예약 상세 시트에도 담당자와 직책이 나온다', (tester) async {
+    await _pump(tester, twoReservations,
+        staffList: [staffOf(1, '원장', '원장'), staffOf(2, '이지수', '실장')]);
+
+    await tester.tap(find.text('이하늘 · 펌'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('담당: 이지수 (#2) · 실장'), findsOneWidget);
+  });
+
+  testWidgets('직원이 1명이면 예약 상세 시트에도 담당자가 나오지 않는다', (tester) async {
+    await _pump(tester, [twoReservations.first]);
+
+    await tester.tap(find.text('김민지 · 커트'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('담당:'), findsNothing);
   });
 }

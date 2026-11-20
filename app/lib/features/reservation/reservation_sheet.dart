@@ -21,12 +21,16 @@ class ReservationSheet extends StatefulWidget {
     required this.reservationRepository,
     required this.saleRepository,
     required this.menuRepository,
+    this.showStaff = false,
   });
 
   final Reservation reservation;
   final ReservationRepository reservationRepository;
   final SaleRepository saleRepository;
   final MenuRepository menuRepository;
+
+  /// true면 담당자를 보여준다. 직원이 2명 이상일 때만 켠다. (staff_visibility.dart)
+  final bool showStaff;
 
   /// 시트를 화면 아래에서 올린다. 닫힐 때 돌려주는 메시지를 그대로 반환한다.
   static Future<String?> show(
@@ -35,6 +39,7 @@ class ReservationSheet extends StatefulWidget {
     required ReservationRepository reservationRepository,
     required SaleRepository saleRepository,
     required MenuRepository menuRepository,
+    bool showStaff = false,
   }) {
     return showModalBottomSheet<String>(
       context: context,
@@ -45,6 +50,7 @@ class ReservationSheet extends StatefulWidget {
         reservationRepository: reservationRepository,
         saleRepository: saleRepository,
         menuRepository: menuRepository,
+        showStaff: showStaff,
       ),
     );
   }
@@ -191,6 +197,7 @@ class _ReservationSheetState extends State<ReservationSheet> {
             Text(formatPhone(r.customerPhone)),
             const SizedBox(height: 12),
             Text(r.menuName),
+            if (widget.showStaff) Text('담당: ${r.staffDisplayName} · ${r.staffPosition}'),
             Text('${formatKoreanDate(day)}  ${formatHm(r.startAt)} ~ ${formatHm(r.endAt)}'),
             if (r.memo != null) ...[
               const SizedBox(height: 8),

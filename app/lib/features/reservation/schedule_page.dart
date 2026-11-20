@@ -6,6 +6,7 @@ import '../../core/kst.dart';
 import '../customer/customer_repository.dart';
 import '../menu/menu_repository.dart';
 import '../staff/staff_repository.dart';
+import '../staff/staff_visibility.dart';
 import '../sales/sale_repository.dart';
 import 'reservation.dart';
 import 'reservation_form_page.dart';
@@ -50,6 +51,16 @@ class _SchedulePageState extends State<SchedulePage> {
   void initState() {
     super.initState();
     _reservations = _load();
+    _loadShowStaff();
+  }
+
+  /// 직원이 2명 이상일 때만 예약 줄에 담당자를 보여준다. 불러오는 동안과 실패했을 때는 보여주지 않는다.
+  bool _showStaff = false;
+
+  Future<void> _loadShowStaff() async {
+    final show = await shouldShowStaff(widget.staffRepository);
+    if (!mounted) return;
+    setState(() => _showStaff = show);
   }
 
   Future<List<Reservation>> _load() =>
@@ -59,6 +70,7 @@ class _SchedulePageState extends State<SchedulePage> {
     setState(() {
       _reservations = _load();
     });
+    _loadShowStaff(); // 그 사이 직원이 늘었을 수 있다
   }
 
   void _moveTo(DateTime date) {
@@ -94,6 +106,7 @@ class _SchedulePageState extends State<SchedulePage> {
       reservationRepository: widget.repository,
       saleRepository: widget.saleRepository,
       menuRepository: widget.menuRepository,
+      showStaff: _showStaff,
     );
     if (message == null) return; // 그냥 닫음: 바뀐 게 없다
     _reload();
@@ -156,6 +169,7 @@ class _SchedulePageState extends State<SchedulePage> {
                   itemBuilder: (context, index) => ReservationTile(
                     reservation: reservations[index],
                     onTap: () => _openDetail(reservations[index]),
+                    showStaff: _showStaff,
                   ),
                 );
               },

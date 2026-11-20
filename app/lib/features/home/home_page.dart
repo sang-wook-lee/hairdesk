@@ -7,6 +7,7 @@ import '../../core/kst.dart';
 import '../customer/customer_repository.dart';
 import '../menu/menu_repository.dart';
 import '../staff/staff_repository.dart';
+import '../staff/staff_visibility.dart';
 import '../reservation/reservation.dart';
 import '../reservation/reservation_form_page.dart';
 import '../reservation/reservation_repository.dart';
@@ -59,12 +60,16 @@ class _HomeData {
     required this.reservations,
     required this.todaySales,
     required this.monthSales,
+    required this.showStaff,
   });
 
   final DateTime today;
   final List<Reservation> reservations;
   final SalesSummary todaySales;
   final SalesSummary monthSales;
+
+  /// 직원이 2명 이상일 때만 예약에 담당자를 보여준다.
+  final bool showStaff;
 }
 
 class _HomePageState extends State<HomePage> {
@@ -75,7 +80,7 @@ class _HomePageState extends State<HomePage> {
     final monthStart = DateTime(today.year, today.month, 1);
     final monthEnd = DateTime(today.year, today.month + 1, 0); // 0일 = 전달 마지막 날 → 이번 달 말일
 
-    // 서로 상관없는 요청 3개를 동시에 보내고 모두 끝나길 기다린다. (하나씩 보내면 3배 느리다)
+    // 서로 상관없는 요청 4개를 동시에 보내고 모두 끝나길 기다린다. (하나씩 보내면 3배 느리다)
     // Future.wait는 하나라도 실패하면 "그 에러 그대로" 던져 준다. (Dart 3의 레코드 `(a, b).wait`는
     // 에러를 ParallelWaitError로 한 겹 감싸서 던지기 때문에, 서버 메시지를 꺼내 쓰기 불편해 쓰지 않았다.)
     // 결과는 넣은 순서대로 들어 있어서, 번호로 꺼내 원래 타입으로 바꿔 쓴다.
@@ -83,15 +88,18 @@ class _HomePageState extends State<HomePage> {
       widget.reservationRepository.fetchBetween(today, today),
       widget.saleRepository.summarize(today, today),
       widget.saleRepository.summarize(monthStart, monthEnd),
+      shouldShowStaff(widget.staffRepository), // 실패해도 예외를 올리지 않는다(담당자 표시는 보조 정보)
     ]);
     final reservations = results[0] as List<Reservation>;
     final todaySales = results[1] as SalesSummary;
     final monthSales = results[2] as SalesSummary;
+    final showStaff = results[3] as bool;
     return _HomeData(
       today: today,
       reservations: reservations,
       todaySales: todaySales,
       monthSales: monthSales,
+      showStaff: showStaff,
     );
   }
 
@@ -107,13 +115,14 @@ class _HomePageState extends State<HomePage> {
   }
 
   /// 예약 상세 시트를 열고, 동작이 성공했으면 홈을 새로고침한다. (일정 화면과 같은 흐름)
-  Future<void> _openDetail(Reservation reservation) async {
+  Future<void> _openDetail(Reservation reservation, {required bool showStaff}) async {
     final message = await ReservationSheet.show(
       context,
       reservation: reservation,
       reservationRepository: widget.reservationRepository,
       saleRepository: widget.saleRepository,
       menuRepository: widget.menuRepository,
+      showStaff: showStaff,
     );
     if (message == null) return;
     _reload();
@@ -204,7 +213,10 @@ class _HomePageState extends State<HomePage> {
         ),
         if (overdue.isNotEmpty) ...[
           const SizedBox(height: 12),
-          _OverdueBanner(count: overdue.length, onTap: () => _openDetail(overdue.first)),
+          _OverdueBanner(
+            count: overdue.length,
+            onTap: () => _openDetail(overdue.first, showStaff: data.showStaff),
+          ),
         ],
         const SizedBox(height: 12),
         if (upcoming.isEmpty)
@@ -217,7 +229,8 @@ class _HomePageState extends State<HomePage> {
               end: upcoming.first.endAt,
               now: now,
             ),
-            onTap: () => _openDetail(upcoming.first),
+            showStaff: data.showStaff,
+            onTap: () => _openDetail(upcoming.first, showStaff: data.showStaff),
           ),
         const SizedBox(height: 20),
         _SectionTitle('빠른 실행'),
@@ -271,7 +284,11 @@ class _HomePageState extends State<HomePage> {
           )
         else ...[
           for (final r in reservations.take(5))
-            ReservationTile(reservation: r, onTap: () => _openDetail(r)),
+            ReservationTile(
+              reservation: r,
+              showStaff: data.showStaff,
+              onTap: () => _openDetail(r, showStaff: data.showStaff),
+            ),
           if (reservations.length > 5)
             Padding(
               padding: const EdgeInsets.only(top: 4),
@@ -365,11 +382,17 @@ class _OverdueBanner extends StatelessWidget {
 }
 
 class _NextCard extends StatelessWidget {
-  const _NextCard({required this.reservation, required this.countdown, required this.onTap});
+  const _NextCard({
+    required this.reservation,
+    required this.countdown,
+    required this.onTap,
+    required this.showStaff,
+  });
 
   final Reservation reservation;
   final String countdown;
   final VoidCallback onTap;
+  final bool showStaff;
 
   @override
   Widget build(BuildContext context) {
@@ -396,6 +419,7 @@ class _NextCard extends StatelessWidget {
               const SizedBox(height: 8),
               Text('${r.customerName} · ${r.menuName}', style: text.titleLarge),
               Text('${formatHm(r.startAt)} ~ ${formatHm(r.endAt)}'),
+              if (showStaff) Text('담당: ${r.staffDisplayName}'),
               if (r.memo != null) Text('메모: ${r.memo}'),
               const SizedBox(height: 12),
               Align(

@@ -4,6 +4,7 @@ import 'package:hairdesk/core/api_client.dart';
 import 'package:hairdesk/features/home/home_page.dart';
 import 'package:hairdesk/features/menu/menu.dart';
 import 'package:hairdesk/features/reservation/reservation.dart';
+import 'package:hairdesk/features/staff/staff.dart';
 
 import '../../support/fakes.dart';
 
@@ -11,8 +12,9 @@ import '../../support/fakes.dart';
 final _now = DateTime.parse('2026-10-01T11:00:00+09:00');
 
 class _Harness {
-  _Harness({List<Reservation>? initial, DateTime Function()? clock})
+  _Harness({List<Reservation>? initial, DateTime Function()? clock, List<Staff>? staffList})
       : clock = clock ?? (() => _now),
+        staff = FakeStaffRepository(staffList ?? [staffOf(1, '원장', '원장')]),
         customers = FakeCustomerRepository([customerOf(1, '김민지', '01012345678')]),
         menus = FakeMenuRepository([menuOf(1, '커트')]) {
     // 예약 등록 응답에 이름을 채우려면 가짜 예약 저장소가 고객/메뉴 목록을 알아야 한다.
@@ -37,6 +39,7 @@ class _Harness {
   late final FakeReservationRepository reservations;
   final FakeCustomerRepository customers;
   final FakeMenuRepository menus;
+  final FakeStaffRepository staff;
   late final FakeSaleRepository sales;
 
   int scheduleOpened = 0;
@@ -67,7 +70,7 @@ class _Harness {
         reservationRepository: reservations,
         customerRepository: customers,
         menuRepository: menus,
-        staffRepository: FakeStaffRepository([staffOf(1, '원장', '원장')]),
+        staffRepository: staff,
         saleRepository: sales,
         onOpenSchedule: () => scheduleOpened++,
         onOpenStats: () => statsOpened++,
@@ -269,5 +272,41 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('오늘 매출'), findsOneWidget);
+  });
+
+  // ---- 담당자 표시 (직원이 2명 이상일 때만) ----
+
+  testWidgets('직원이 2명 이상이면 다음 예약 카드와 오늘 일정 줄에 담당자가 나온다', (tester) async {
+    final h = _Harness(
+      staffList: [staffOf(1, '원장', '원장'), staffOf(2, '이지수', '실장')],
+      initial: [
+        reservationOf(3, '이하늘', '펌', '2026-10-01T11:30:00+09:00', '2026-10-01T13:30:00+09:00',
+            staffId: 2, staffName: '이지수', staffPosition: '실장'),
+        reservationOf(4, '최유리', '염색', '2026-10-01T15:00:00+09:00', '2026-10-01T16:00:00+09:00',
+            staffId: 1, staffName: '원장', staffPosition: '원장'),
+      ],
+    );
+    await h.pump(tester);
+
+    expect(find.text('담당: 이지수 (#2)'), findsOneWidget); // 다음 예약 카드
+    expect(find.text('담당 이지수 (#2)'), findsOneWidget); // 오늘 일정 줄
+    expect(find.text('담당 원장 (#1)'), findsOneWidget);
+  });
+
+  testWidgets('직원이 1명이면 홈 어디에도 담당자가 나오지 않는다', (tester) async {
+    final h = _Harness();
+    await h.pump(tester);
+
+    expect(find.textContaining('담당'), findsNothing);
+  });
+
+  testWidgets('직원 목록을 못 불러와도 홈은 정상으로 열리고 담당자만 빠진다', (tester) async {
+    final h = _Harness(staffList: [staffOf(1, '원장', '원장'), staffOf(2, '이지수', '실장')]);
+    h.staff.failOnFetch = ApiException(500, '서버 오류');
+    await h.pump(tester);
+
+    expect(find.text('오늘 매출'), findsOneWidget);
+    expect(find.text('서버 오류'), findsNothing);
+    expect(find.textContaining('담당'), findsNothing);
   });
 }
