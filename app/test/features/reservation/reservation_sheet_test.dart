@@ -36,6 +36,7 @@ class _Harness {
         repository: reservations,
         customerRepository: FakeCustomerRepository([]),
         menuRepository: menus,
+        staffRepository: FakeStaffRepository([staffOf(1, '원장', '원장')]),
         saleRepository: sales,
         initialDate: DateTime(2026, 10, 1),
       ),

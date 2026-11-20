@@ -251,7 +251,7 @@ class FakeReservationRepository implements ReservationRepository {
   Future<Reservation> create({
     required int customerId,
     required int menuId,
-    int? staffId,
+    required int staffId,
     required DateTime startAt,
     String? memo,
   }) async {
@@ -275,10 +275,10 @@ class FakeReservationRepository implements ReservationRepository {
       customerPhone: customer.phone,
       menuId: menuId,
       menuName: menu.name,
-      // 담당자를 고르지 않으면 서버처럼 매장 주인(직원 번호 1, 원장)으로 본다.
-      staffId: staffId ?? 1,
-      staffName: staffId == null ? '원장' : '직원$staffId',
-      staffPosition: staffId == null ? '원장' : '디자이너',
+      // 가짜 저장소는 직원 목록을 모른다. 번호 1은 원장, 그 밖은 "직원N"으로 만든다.
+      staffId: staffId,
+      staffName: staffId == 1 ? '원장' : '직원$staffId',
+      staffPosition: staffId == 1 ? '원장' : '디자이너',
       startAt: start,
       endAt: start.add(Duration(minutes: menu.durationMinutes)),
       status: ReservationStatus.booked,

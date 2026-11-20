@@ -8,6 +8,8 @@ import '../customer/customer_picker_page.dart';
 import '../customer/customer_repository.dart';
 import '../menu/menu.dart';
 import '../menu/menu_repository.dart';
+import '../staff/staff.dart';
+import '../staff/staff_repository.dart';
 import 'reservation.dart';
 import 'reservation_repository.dart';
 
@@ -19,12 +21,14 @@ class ReservationFormPage extends StatefulWidget {
     required this.reservationRepository,
     required this.customerRepository,
     required this.menuRepository,
+    required this.staffRepository,
     required this.initialDate,
   });
 
   final ReservationRepository reservationRepository;
   final CustomerRepository customerRepository;
   final MenuRepository menuRepository;
+  final StaffRepository staffRepository;
 
   /// 일정 화면에서 보고 있던 날짜. 날짜 칸의 기본값이다.
   final DateTime initialDate;
@@ -40,6 +44,13 @@ class _ReservationFormPageState extends State<ReservationFormPage> {
   /// 판매 중인 메뉴만 불러온다. (판매 중지 메뉴는 서버도 예약을 거절한다)
   late final Future<List<Menu>> _menus = widget.menuRepository.fetchAll();
 
+  // 담당자: 근무 중인 직원을 불러와서, 수에 따라 폼 모양이 달라진다. (ADR 0011)
+  //   1명: 칸을 숨기고 그 직원으로 자동 지정 / 2명 이상: 반드시 직접 고른다 / 0명: 안내하고 저장을 막는다.
+  List<Staff> _activeStaff = const [];
+  bool _staffLoading = true;
+  String? _staffError;
+  Staff? _pickedStaff; // 2명 이상일 때 사용자가 고른 직원
+
   Customer? _customer;
   Menu? _menu;
   late DateTime _date = widget.initialDate;
@@ -50,10 +61,43 @@ class _ReservationFormPageState extends State<ReservationFormPage> {
   String? _error; // 서버가 거절한 이유. 예: "해당 시간에 이미 예약이 있습니다."
 
   @override
+  void initState() {
+    super.initState();
+    _loadStaff();
+  }
+
+  @override
   void dispose() {
     _memo.dispose();
     super.dispose();
   }
+
+  Future<void> _loadStaff() async {
+    setState(() {
+      _staffLoading = true;
+      _staffError = null;
+    });
+    try {
+      final staff = await widget.staffRepository.fetchAll(); // 근무 중인 직원만
+      if (!mounted) return;
+      setState(() {
+        _activeStaff = staff;
+        _staffLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _staffLoading = false;
+        _staffError = errorMessage(e);
+      });
+    }
+  }
+
+  /// 이 예약의 담당자. 근무 중인 직원이 1명이면 그 직원, 2명 이상이면 고른 직원, 그 밖에는 없다.
+  Staff? get _assignedStaff => _activeStaff.length == 1 ? _activeStaff.first : _pickedStaff;
+
+  /// 담당자를 정할 수 있는 상태인가. 불러오는 중이거나 실패했거나 근무 중인 직원이 없으면 저장할 수 없다.
+  bool get _staffReady => !_staffLoading && _staffError == null && _activeStaff.isNotEmpty;
 
   /// 선택한 날짜 + 시간을 "서울 벽시계 시각" 하나로 합친다.
   DateTime get _start =>
@@ -92,7 +136,8 @@ class _ReservationFormPageState extends State<ReservationFormPage> {
     // 메뉴는 폼 검증, 고객은 별도 칸이라 따로 확인한다. 둘 다 안내가 나오도록 먼저 계산해 둔다.
     final formOk = _formKey.currentState!.validate();
     setState(() => _customerMissing = _customer == null);
-    if (!formOk || _customer == null) return;
+    final staff = _assignedStaff;
+    if (!formOk || _customer == null || staff == null) return;
 
     setState(() {
       _saving = true;
@@ -103,6 +148,7 @@ class _ReservationFormPageState extends State<ReservationFormPage> {
       final created = await widget.reservationRepository.create(
         customerId: _customer!.id,
         menuId: _menu!.id,
+        staffId: staff.id,
         startAt: _start,
         memo: memo.isEmpty ? null : memo,
       );
@@ -173,6 +219,7 @@ class _ReservationFormPageState extends State<ReservationFormPage> {
               },
             ),
             const SizedBox(height: 16),
+            ..._staffSection(errorColor),
             _TapField(label: '날짜', value: formatKoreanDate(_date), onTap: _pickDate),
             const SizedBox(height: 16),
             _TapField(label: '시작 시간', value: _hm(_start), onTap: _pickTime),
@@ -205,13 +252,63 @@ class _ReservationFormPageState extends State<ReservationFormPage> {
               ),
             const SizedBox(height: 16),
             FilledButton(
-              onPressed: _saving ? null : _save,
+              // 담당자를 정할 수 없는 동안(불러오는 중, 실패, 근무 중인 직원 없음)에는 저장할 수 없다.
+              onPressed: (_saving || !_staffReady) ? null : _save,
               child: Text(_saving ? '저장 중...' : '저장'),
             ),
           ],
         ),
       ),
     );
+  }
+
+  /// 담당자 칸. 근무 중인 직원 수에 따라 모양이 다르다. 칸 아래의 간격까지 포함해서 돌려준다.
+  List<Widget> _staffSection(Color errorColor) {
+    if (_staffLoading) {
+      return const [LinearProgressIndicator(), SizedBox(height: 16)];
+    }
+    if (_staffError != null) {
+      return [
+        Row(
+          children: [
+            Expanded(child: Text(_staffError!, style: TextStyle(color: errorColor))),
+            TextButton(onPressed: _loadStaff, child: const Text('다시 시도')),
+          ],
+        ),
+        const SizedBox(height: 16),
+      ];
+    }
+    if (_activeStaff.isEmpty) {
+      return [
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.errorContainer,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Text('근무 중인 직원이 없어요. 직원 화면에서 근무를 재개해 주세요.',
+              style: TextStyle(color: errorColor)),
+        ),
+        const SizedBox(height: 16),
+      ];
+    }
+    if (_activeStaff.length == 1) {
+      return const []; // 혼자 일하는 경우: 칸 없이 그 직원으로 자동 지정된다
+    }
+    return [
+      DropdownButtonFormField<Staff>(
+        decoration: const InputDecoration(labelText: '담당자'),
+        hint: const Text('담당자 선택'),
+        // 기본값을 두지 않는다. 누구에게 배정할지 직접 고르게 한다. (ADR 0011: 기본 담당자는 없다)
+        items: [
+          for (final s in _activeStaff)
+            DropdownMenuItem(value: s, child: Text('${s.displayName} · ${s.position}')),
+        ],
+        onChanged: (s) => setState(() => _pickedStaff = s),
+        validator: (s) => s == null ? '담당자를 선택해 주세요' : null,
+      ),
+      const SizedBox(height: 16),
+    ];
   }
 }
 

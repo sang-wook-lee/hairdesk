@@ -67,6 +67,7 @@ class _Harness {
         reservationRepository: reservations,
         customerRepository: customers,
         menuRepository: menus,
+        staffRepository: FakeStaffRepository([staffOf(1, '원장', '원장')]),
         saleRepository: sales,
         onOpenSchedule: () => scheduleOpened++,
         onOpenStats: () => statsOpened++,

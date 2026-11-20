@@ -7,6 +7,7 @@ import 'features/home/home_shell.dart';
 import 'features/menu/menu_repository.dart';
 import 'features/reservation/reservation_repository.dart';
 import 'features/sales/sale_repository.dart';
+import 'features/staff/staff_repository.dart';
 import 'features/stats/stats_data.dart';
 import 'features/stats/stats_repository.dart';
 
@@ -17,6 +18,7 @@ void main() {
   final saleRepository = SaleRepository(api);
   runApp(HairdeskApp(
     menuRepository: MenuRepository(api),
+    staffRepository: StaffRepository(api),
     customerRepository: CustomerRepository(api),
     reservationRepository: ReservationRepository(api),
     saleRepository: saleRepository,
@@ -30,6 +32,7 @@ class HairdeskApp extends StatelessWidget {
   const HairdeskApp({
     super.key,
     required this.menuRepository,
+    required this.staffRepository,
     required this.customerRepository,
     required this.reservationRepository,
     required this.saleRepository,
@@ -37,6 +40,7 @@ class HairdeskApp extends StatelessWidget {
   });
 
   final MenuRepository menuRepository;
+  final StaffRepository staffRepository;
   final CustomerRepository customerRepository;
   final ReservationRepository reservationRepository;
   final SaleRepository saleRepository;
@@ -63,6 +67,7 @@ class HairdeskApp extends StatelessWidget {
         reservationRepository: reservationRepository,
         customerRepository: customerRepository,
         menuRepository: menuRepository,
+        staffRepository: staffRepository,
         saleRepository: saleRepository,
         statsLoader: statsLoader,
       ),

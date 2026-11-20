@@ -5,6 +5,7 @@ import '../../core/error_view.dart';
 import '../../core/kst.dart';
 import '../customer/customer_repository.dart';
 import '../menu/menu_repository.dart';
+import '../staff/staff_repository.dart';
 import '../sales/sale_repository.dart';
 import 'reservation.dart';
 import 'reservation_form_page.dart';
@@ -19,15 +20,17 @@ class SchedulePage extends StatefulWidget {
     required this.repository,
     required this.customerRepository,
     required this.menuRepository,
+    required this.staffRepository,
     required this.saleRepository,
     this.initialDate,
   });
 
   final ReservationRepository repository;
 
-  /// 예약 추가 폼이 고객 검색과 메뉴 목록에 쓴다.
+  /// 예약 추가 폼이 고객 검색, 메뉴 목록, 담당자(근무 중인 직원) 목록에 쓴다.
   final CustomerRepository customerRepository;
   final MenuRepository menuRepository;
+  final StaffRepository staffRepository;
 
   /// 예약 상세 시트의 "결제하기"가 쓴다.
   final SaleRepository saleRepository;
@@ -72,6 +75,7 @@ class _SchedulePageState extends State<SchedulePage> {
           reservationRepository: widget.repository,
           customerRepository: widget.customerRepository,
           menuRepository: widget.menuRepository,
+          staffRepository: widget.staffRepository,
           initialDate: _date,
         ),
       ),

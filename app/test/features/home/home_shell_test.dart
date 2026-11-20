@@ -26,6 +26,7 @@ void main() {
         reservationRepository: reservations,
         customerRepository: FakeCustomerRepository([]),
         menuRepository: FakeMenuRepository([]),
+        staffRepository: FakeStaffRepository([staffOf(1, '원장', '원장')]),
         saleRepository: sales,
         statsLoader: StatsLoader(stats: stats, sales: sales),
         clock: () => DateTime.parse('2026-10-01T11:00:00+09:00'),

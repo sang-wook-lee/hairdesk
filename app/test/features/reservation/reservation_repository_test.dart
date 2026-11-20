@@ -11,7 +11,7 @@ import 'package:http/testing.dart';
 /// 저장소가 서버와 주고받는 "모양"(주소, 파라미터, JSON)을 확인한다.
 /// 화면 테스트는 가짜 저장소를 쓰므로, 실제 저장소가 맞는 요청을 만드는지는 여기서만 검증된다.
 void main() {
-  test('예약 등록: 서울 시각 문자열과 id만 보내고, 메모가 없으면 키를 빼서 보낸다', () async {
+  test('예약 등록: 서울 시각 문자열과 고객·메뉴·담당자 번호만 보내고, 메모가 없으면 키를 빼서 보낸다', () async {
     late http.Request sent;
     final client = MockClient((request) async {
       sent = request;
@@ -38,6 +38,7 @@ void main() {
     final created = await ReservationRepository(ApiClient(httpClient: client)).create(
       customerId: 1,
       menuId: 2,
+      staffId: 1,
       startAt: DateTime(2026, 10, 23, 14, 0),
     );
 
@@ -46,14 +47,15 @@ void main() {
     expect(jsonDecode(utf8.decode(sent.bodyBytes)), {
       'customerId': 1,
       'menuId': 2,
+      'staffId': 1, // 담당자는 항상 보낸다 (ADR 0011: 기본 담당자는 없다)
       'startAt': '2026-10-23T14:00:00+09:00',
     });
     expect(created.id, 7);
     expect(created.menuName, '펌');
-    expect(created.staffName, '원장'); // 담당자를 안 보내면 서버가 매장 주인으로 예약한 응답이 온다
+    expect(created.staffName, '원장');
   });
 
-  test('예약 등록: 담당자를 고르면 staffId를 함께 보낸다', () async {
+  test('예약 등록: 다른 직원을 지정하면 그 직원의 번호를 보내고, 응답의 담당자를 읽는다', () async {
     late http.Request sent;
     final client = MockClient((request) async {
       sent = request;

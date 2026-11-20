@@ -6,6 +6,7 @@ import '../menu/menu_repository.dart';
 import '../reservation/reservation_repository.dart';
 import '../reservation/schedule_page.dart';
 import '../sales/sale_repository.dart';
+import '../staff/staff_repository.dart';
 import '../stats/stats_data.dart';
 import '../stats/stats_page.dart';
 import 'home_page.dart';
@@ -17,6 +18,7 @@ class HomeShell extends StatefulWidget {
     required this.reservationRepository,
     required this.customerRepository,
     required this.menuRepository,
+    required this.staffRepository,
     required this.saleRepository,
     required this.statsLoader,
     this.clock = DateTime.now,
@@ -25,6 +27,7 @@ class HomeShell extends StatefulWidget {
   final ReservationRepository reservationRepository;
   final CustomerRepository customerRepository;
   final MenuRepository menuRepository;
+  final StaffRepository staffRepository;
   final SaleRepository saleRepository;
   final StatsLoader statsLoader;
 
@@ -85,6 +88,7 @@ class _HomeShellState extends State<HomeShell> {
             reservationRepository: widget.reservationRepository,
             customerRepository: widget.customerRepository,
             menuRepository: widget.menuRepository,
+            staffRepository: widget.staffRepository,
             saleRepository: widget.saleRepository,
             onOpenSchedule: () => _select(_scheduleTab),
             onOpenStats: () => _select(_statsTab),
@@ -95,6 +99,7 @@ class _HomeShellState extends State<HomeShell> {
             repository: widget.reservationRepository,
             customerRepository: widget.customerRepository,
             menuRepository: widget.menuRepository,
+            staffRepository: widget.staffRepository,
             saleRepository: widget.saleRepository,
           ),
           _statsOpened

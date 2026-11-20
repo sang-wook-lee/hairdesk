@@ -6,6 +6,7 @@ import '../../core/format.dart';
 import '../../core/kst.dart';
 import '../customer/customer_repository.dart';
 import '../menu/menu_repository.dart';
+import '../staff/staff_repository.dart';
 import '../reservation/reservation.dart';
 import '../reservation/reservation_form_page.dart';
 import '../reservation/reservation_repository.dart';
@@ -24,6 +25,7 @@ class HomePage extends StatefulWidget {
     required this.reservationRepository,
     required this.customerRepository,
     required this.menuRepository,
+    required this.staffRepository,
     required this.saleRepository,
     required this.onOpenSchedule,
     required this.onOpenStats,
@@ -34,6 +36,7 @@ class HomePage extends StatefulWidget {
   final ReservationRepository reservationRepository;
   final CustomerRepository customerRepository;
   final MenuRepository menuRepository;
+  final StaffRepository staffRepository;
   final SaleRepository saleRepository;
 
   /// 탭 이동은 화면 뼈대(HomeShell)의 일이라 콜백으로 부탁한다.
@@ -125,6 +128,7 @@ class _HomePageState extends State<HomePage> {
           reservationRepository: widget.reservationRepository,
           customerRepository: widget.customerRepository,
           menuRepository: widget.menuRepository,
+          staffRepository: widget.staffRepository,
           initialDate: kstToday(now: widget.clock()),
         ),
       ),

@@ -2,14 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hairdesk/core/api_client.dart';
 import 'package:hairdesk/features/menu/menu.dart';
+import 'package:hairdesk/features/staff/staff.dart';
 import 'package:hairdesk/features/reservation/schedule_page.dart';
 
 import '../../support/fakes.dart';
 
 /// 예약 추가 흐름 테스트. 일정 화면에서 "예약 추가"를 눌러 폼을 열고 끝까지 진행한다.
 class _Harness {
-  _Harness()
-      : customers = FakeCustomerRepository([
+  /// [staffList]: 근무 중인 직원. 기본은 원장 1명(혼자 일하는 매장)이다.
+  _Harness({List<Staff>? staffList})
+      : staff = FakeStaffRepository(staffList ?? [staffOf(1, '원장', '원장')]),
+        customers = FakeCustomerRepository([
           customerOf(1, '김민지', '01012345678', memo: '두피 민감'),
           customerOf(2, '이하늘', '01099990000'),
         ]),
@@ -27,6 +30,7 @@ class _Harness {
 
   final FakeCustomerRepository customers;
   final FakeMenuRepository menus;
+  final FakeStaffRepository staff;
   late final FakeReservationRepository reservations;
 
   Future<void> pump(WidgetTester tester) async {
@@ -41,6 +45,7 @@ class _Harness {
         repository: reservations,
         customerRepository: customers,
         menuRepository: menus,
+        staffRepository: staff,
         saleRepository: FakeSaleRepository(),
         initialDate: DateTime(2026, 10, 1),
       ),
@@ -57,6 +62,13 @@ class _Harness {
     await tester.tap(find.text('탭해서 고객 선택'));
     await tester.pumpAndSettle();
     await tester.tap(find.text(name));
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> chooseStaff(WidgetTester tester, String label) async {
+    await tester.tap(find.byType(DropdownButtonFormField<Staff>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(label).last);
     await tester.pumpAndSettle();
   }
 
@@ -84,7 +96,7 @@ void main() {
     expect(h.reservations.created.single, {
       'customerId': 1,
       'menuId': 1,
-      'staffId': null, // 담당자를 고르지 않았다 → 서버가 매장 주인으로 처리
+      'staffId': 1, // 근무 중인 직원이 원장 1명뿐이라 자동으로 지정됐다
       'startAt': '2026-10-01T10:00:00+09:00',
       'memo': '뒷머리 짧게',
     });
@@ -160,5 +172,108 @@ void main() {
 
     expect(find.textContaining('서버에 연결할 수 없습니다'), findsOneWidget);
     expect(find.text('저장'), findsOneWidget);
+  });
+
+  // ---- 담당자 (ADR 0011) ----
+
+  testWidgets('근무 중인 직원이 1명이면 담당자 칸이 없고, 그 직원의 번호가 서버로 간다', (tester) async {
+    final h = _Harness(staffList: [staffOf(7, '이지수', '실장')]);
+    await h.pump(tester);
+    await h.openForm(tester);
+
+    expect(find.byType(DropdownButtonFormField<Staff>), findsNothing);
+
+    await h.chooseCustomer(tester, '김민지');
+    await h.chooseMenu(tester, '커트 · 1시간 · 20,000원');
+    await tester.tap(find.text('저장'));
+    await tester.pumpAndSettle();
+
+    expect(h.reservations.created.single['staffId'], 7);
+  });
+
+  testWidgets('근무 중인 직원이 2명 이상이면 담당자를 고르고, 고른 직원의 번호가 서버로 간다', (tester) async {
+    final h = _Harness(staffList: [staffOf(1, '원장', '원장'), staffOf(2, '이지수', '실장')]);
+    await h.pump(tester);
+    await h.openForm(tester);
+
+    expect(find.byType(DropdownButtonFormField<Staff>), findsOneWidget);
+
+    await h.chooseCustomer(tester, '김민지');
+    await h.chooseMenu(tester, '커트 · 1시간 · 20,000원');
+    await h.chooseStaff(tester, '이지수 (#2) · 실장');
+    await tester.tap(find.text('저장'));
+    await tester.pumpAndSettle();
+
+    expect(h.reservations.created.single['staffId'], 2);
+  });
+
+  testWidgets('이름과 직책이 같은 직원도 번호로 구별되어 목록에 둘 다 나온다', (tester) async {
+    final h = _Harness(staffList: [staffOf(2, '이지수', '실장'), staffOf(5, '이지수', '실장')]);
+    await h.pump(tester);
+    await h.openForm(tester);
+
+    await tester.tap(find.byType(DropdownButtonFormField<Staff>));
+    await tester.pumpAndSettle();
+
+    expect(find.text('이지수 (#2) · 실장'), findsOneWidget);
+    expect(find.text('이지수 (#5) · 실장'), findsOneWidget);
+  });
+
+  testWidgets('직원이 2명 이상인데 담당자를 안 고르면 안내하고 서버로 보내지 않는다 (기본값 없음)', (tester) async {
+    final h = _Harness(staffList: [staffOf(1, '원장', '원장'), staffOf(2, '이지수', '실장')]);
+    await h.pump(tester);
+    await h.openForm(tester);
+
+    await h.chooseCustomer(tester, '김민지');
+    await h.chooseMenu(tester, '커트 · 1시간 · 20,000원');
+    await tester.tap(find.text('저장'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('담당자를 선택해 주세요'), findsOneWidget);
+    expect(h.reservations.created, isEmpty);
+  });
+
+  testWidgets('근무 중인 직원이 없으면 안내하고 저장할 수 없다', (tester) async {
+    final h = _Harness(staffList: []);
+    await h.pump(tester);
+    await h.openForm(tester);
+
+    expect(find.textContaining('근무 중인 직원이 없어요'), findsOneWidget);
+    expect(find.textContaining('근무를 재개해 주세요'), findsOneWidget);
+    final save = tester.widget<FilledButton>(find.byType(FilledButton));
+    expect(save.onPressed, isNull); // 저장 버튼이 비활성이다
+  });
+
+  testWidgets('직원 목록을 불러오지 못하면 오류와 "다시 시도"가 나오고, 복구되면 저장할 수 있다', (tester) async {
+    final h = _Harness();
+    h.staff.failOnFetch = ApiException(500, '서버 오류');
+    await h.pump(tester);
+    await h.openForm(tester);
+
+    expect(find.text('서버 오류'), findsOneWidget);
+    expect(tester.widget<FilledButton>(find.byType(FilledButton)).onPressed, isNull);
+
+    h.staff.failOnFetch = null;
+    await tester.tap(find.text('다시 시도'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('서버 오류'), findsNothing);
+    expect(tester.widget<FilledButton>(find.byType(FilledButton)).onPressed, isNotNull);
+  });
+
+  testWidgets('그 직원의 시간이 이미 차서 서버가 거절하면, 어느 직원인지 담긴 메시지를 그대로 보여준다', (tester) async {
+    final h = _Harness(staffList: [staffOf(1, '원장', '원장'), staffOf(2, '이지수', '실장')]);
+    h.reservations.failOnCreate = ApiException(409, '이지수(#2)은(는) 해당 시간에 이미 예약이 있습니다.');
+    await h.pump(tester);
+    await h.openForm(tester);
+
+    await h.chooseCustomer(tester, '김민지');
+    await h.chooseMenu(tester, '커트 · 1시간 · 20,000원');
+    await h.chooseStaff(tester, '이지수 (#2) · 실장');
+    await tester.tap(find.text('저장'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('이지수(#2)은(는) 해당 시간에 이미 예약이 있습니다.'), findsOneWidget);
+    expect(find.text('저장'), findsOneWidget); // 폼에 머물러서 다른 직원이나 시간으로 다시 시도할 수 있다
   });
 }
