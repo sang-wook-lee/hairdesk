@@ -4,7 +4,6 @@ import com.salonapp.staff.domain.Staff;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
-import java.util.Optional;
 
 public interface StaffRepository extends JpaRepository<Staff, Long> {
 
@@ -13,7 +12,4 @@ public interface StaffRepository extends JpaRepository<Staff, Long> {
 
     // ... WHERE active = true ORDER BY id ASC
     List<Staff> findAllByActiveTrueOrderByIdAsc();
-
-    // ... WHERE owner = true  (주인은 DB 제약으로 최대 1명이라 결과가 하나뿐이다)
-    Optional<Staff> findByOwnerTrue();
 }

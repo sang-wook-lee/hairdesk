@@ -12,13 +12,11 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 /**
- * 직원(담당자). ADR 0010
+ * 직원(담당자). ADR 0010, 0011
  *
  * - 직원은 id(= 직원 번호)로 구분한다. 이름·직책이 같은 직원이 있을 수 있다.
- * - 새로 만든 직원은 항상 주인이 아니다(owner = false). 주인은 마이그레이션이 만든 1명에서
- *   시작하고, 바꿀 때는 아래 markAsOwner / unmarkAsOwner를 한 트랜잭션에서 함께 쓴다.
- * - "주인은 비활성화할 수 없다", "주인이 될 직원은 근무 중이어야 한다" 같은 규칙은
- *   다른 직원(현재 주인)을 알아야 하는 규칙이라 StaffService가 확인한다.
+ * - "주인" 같은 특별한 직원은 없다. 총책임자는 직책("원장")으로 표현하고, 모든 직원은 같은 규칙을 따른다. (ADR 0011)
+ * - 근무를 마친 직원은 삭제하지 않고 active=false로 둔다. 과거 예약·매출이 이 직원을 참조하기 때문이다.
  */
 @Entity
 @Table(name = "staff")
@@ -37,16 +35,11 @@ public class Staff extends BaseTimeEntity {
     @Column(nullable = false, length = 30)
     private String position;
 
-    /** 매장 주인 표시. 담당자를 생략했을 때의 기본 담당자. DB가 "true는 최대 1명"을 보장한다. */
-    @Column(nullable = false)
-    private boolean owner;
-
     @Column(nullable = false)
     private boolean active;
 
     public Staff(String name, String position) {
         this.active = true;
-        this.owner = false;
         update(name, position);
     }
 
@@ -69,13 +62,5 @@ public class Staff extends BaseTimeEntity {
 
     public void activate() {
         this.active = true;
-    }
-
-    public void markAsOwner() {
-        this.owner = true;
-    }
-
-    public void unmarkAsOwner() {
-        this.owner = false;
     }
 }

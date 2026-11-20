@@ -97,13 +97,12 @@ public class SaleService {
     }
 
     /**
-     * 워크인 매출의 담당자. 생략하면 매장 주인, 있으면 그 직원(없으면 404).
+     * 워크인 매출의 담당자. 직접 지정해야 하고(없으면 400), 없는 직원이면 404.
      * 근무를 마친 직원도 허용한다: 매출은 이미 끝난 시술을 기록하는 것이다. (판매 중지 메뉴를 허용하는 것과 같은 이유)
      */
     private Staff findStaff(Long staffId) {
         if (staffId == null) {
-            return staffRepository.findByOwnerTrue()
-                    .orElseThrow(() -> new IllegalStateException("매장 주인이 지정되어 있지 않습니다."));
+            throw new IllegalArgumentException("워크인 매출에는 staffId(담당자)가 필요합니다.");
         }
         return staffRepository.findById(staffId)
                 .orElseThrow(() -> new NotFoundException("직원을 찾을 수 없습니다. 직원 번호=" + staffId));

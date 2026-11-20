@@ -7,7 +7,6 @@ public record StaffResponse(
         Long id,
         String name,
         String position,
-        boolean owner,
         boolean active
 ) {
     public static StaffResponse from(Staff staff) {
@@ -15,7 +14,6 @@ public record StaffResponse(
                 staff.getId(),
                 staff.getName(),
                 staff.getPosition(),
-                staff.isOwner(),
                 staff.isActive()
         );
     }

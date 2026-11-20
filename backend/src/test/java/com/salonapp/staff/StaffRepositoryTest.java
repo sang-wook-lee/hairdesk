@@ -3,12 +3,12 @@ package com.salonapp.staff;
 import com.salonapp.TestcontainersConfiguration;
 import com.salonapp.staff.domain.Staff;
 import com.salonapp.staff.repository.StaffRepository;
+import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
@@ -31,29 +31,29 @@ class StaffRepositoryTest {
     @Autowired
     StaffRepository staffRepository;
 
+    @Autowired
+    EntityManager entityManager;
+
     @Test
-    @DisplayName("마이그레이션 직후에는 주인인 원장 1명이 있다")
-    void defaultOwnerExists() {
+    @DisplayName("마이그레이션 직후에는 직책이 원장인 직원 1명(원장)이 있다")
+    void defaultStaffExists() {
         List<Staff> all = staffRepository.findAllByOrderByIdAsc();
 
         assertThat(all).hasSize(1);
-        Staff owner = all.get(0);
-        assertThat(owner.getName()).isEqualTo("원장");
-        assertThat(owner.getPosition()).isEqualTo("원장");
-        assertThat(owner.isOwner()).isTrue();
-        assertThat(owner.isActive()).isTrue();
-        assertThat(staffRepository.findByOwnerTrue()).contains(owner);
+        Staff director = all.get(0);
+        assertThat(director.getName()).isEqualTo("원장");
+        assertThat(director.getPosition()).isEqualTo("원장");
+        assertThat(director.isActive()).isTrue();
     }
 
     @Test
-    @DisplayName("새로 만든 직원은 주인이 아니고 근무 중이며, 생성·수정 시각이 채워진다")
+    @DisplayName("새로 만든 직원은 근무 중이며, 생성·수정 시각이 채워진다")
     void newStaffDefaults() {
         Staff saved = staffRepository.saveAndFlush(new Staff("  김하나 ", " 디자이너 "));
 
         assertThat(saved.getId()).isNotNull();
         assertThat(saved.getName()).isEqualTo("김하나");       // 앞뒤 공백은 잘린다
         assertThat(saved.getPosition()).isEqualTo("디자이너");
-        assertThat(saved.isOwner()).isFalse();
         assertThat(saved.isActive()).isTrue();
         assertThat(saved.getCreatedAt()).isNotNull();
         assertThat(saved.getUpdatedAt()).isNotNull();
@@ -70,28 +70,24 @@ class StaffRepositoryTest {
     }
 
     @Test
-    @DisplayName("주인을 두 명으로 만들면 DB가 거부한다")
-    void twoOwnersRejected() {
-        Staff another = new Staff("이지수", "원장");
-        another.markAsOwner(); // 이미 주인(원장)이 있는데 또 주인으로 표시
+    @DisplayName("직책이 원장인 직원은 여러 명일 수 있다 (원장은 직책이지 한 명뿐인 신분이 아니다)")
+    void severalDirectorsAllowed() {
+        staffRepository.saveAndFlush(new Staff("이지수", "원장"));
+        staffRepository.saveAndFlush(new Staff("박민수", "원장"));
 
-        assertThatThrownBy(() -> staffRepository.saveAndFlush(another))
-                .isInstanceOf(DataIntegrityViolationException.class);
+        assertThat(staffRepository.findAllByOrderByIdAsc()).extracting(Staff::getPosition)
+                .containsExactly("원장", "원장", "원장");
     }
 
     @Test
-    @DisplayName("기존 주인의 표시를 먼저 DB에 반영하면 주인을 다른 직원으로 바꿀 수 있다")
-    void changeOwner() {
-        Staff oldOwner = staffRepository.findByOwnerTrue().orElseThrow();
-        Staff next = staffRepository.saveAndFlush(new Staff("이지수", "원장"));
+    @DisplayName("staff 테이블에 owner 컬럼이 없다 (마이그레이션 V8)")
+    void ownerColumnWasDropped() {
+        @SuppressWarnings("unchecked")
+        List<String> columns = entityManager.createNativeQuery(
+                "SELECT column_name FROM information_schema.columns WHERE table_name = 'staff'")
+                .getResultList();
 
-        // 끄는 쪽을 먼저 flush하는 이유: 켜는 UPDATE가 먼저 나가면 잠깐 주인이 둘이 되어 제약에 걸린다.
-        oldOwner.unmarkAsOwner();
-        staffRepository.saveAndFlush(oldOwner);
-        next.markAsOwner();
-        staffRepository.saveAndFlush(next);
-
-        assertThat(staffRepository.findByOwnerTrue()).contains(next);
+        assertThat(columns).contains("id", "name", "position", "active").doesNotContain("owner");
     }
 
     @Test

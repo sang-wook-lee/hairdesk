@@ -46,7 +46,7 @@ class ReservationApiTest {
     @Autowired ReservationRepository reservationRepository;
     @Autowired StaffRepository staffRepository;
 
-    Staff owner;     // 마이그레이션이 만든 기본 직원(원장). 모든 테스트가 이 직원에서 시작한다.
+    Staff defaultStaff;     // V6 마이그레이션이 만든 기본 직원(원장). 모든 테스트가 이 직원에서 시작한다.
     Staff designer;  // 두 번째 직원
     Customer customer;
     TreatmentMenu cut;   // 60분
@@ -54,7 +54,7 @@ class ReservationApiTest {
 
     @BeforeEach
     void setUp() {
-        owner = staffRepository.findByOwnerTrue().orElseThrow();
+        defaultStaff = staffRepository.findAllByOrderByIdAsc().get(0);
         designer = staffRepository.save(new Staff("이지수", "디자이너"));
         customer = customerRepository.save(new Customer("김민지", "01012345678", null, null, false));
         cut = menuRepository.save(new TreatmentMenu("커트", MenuCategory.CUT, 20000, 60, 1));
@@ -195,8 +195,8 @@ class ReservationApiTest {
         mockMvc.perform(post("/api/reservations")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"customerId":999999,"menuId":%d,"startAt":"2026-10-01T14:00:00+09:00"}
-                                """.formatted(cut.getId())))
+                                {"customerId":999999,"menuId":%d,"staffId":%d,"startAt":"2026-10-01T14:00:00+09:00"}
+                                """.formatted(cut.getId(), defaultStaff.getId())))
                 .andExpect(status().isNotFound());
     }
 
@@ -223,10 +223,10 @@ class ReservationApiTest {
     @DisplayName("서비스 확인을 우회해도 DB 제약이 겹치는 예약을 막는다 (동시 요청 방어선)")
     void databaseConstraintIsLastDefense() {
         Instant start = Instant.parse("2026-10-01T05:00:00Z");
-        reservationRepository.saveAndFlush(new Reservation(customer, cut, owner, start, null));
+        reservationRepository.saveAndFlush(new Reservation(customer, cut, defaultStaff, start, null));
 
         // 서비스의 사전 확인 없이 저장소에 바로 저장 = 동시에 들어온 두 번째 요청을 흉내 낸다.
-        Reservation overlapping = new Reservation(customer, cut, owner, start.plusSeconds(30 * 60), null);
+        Reservation overlapping = new Reservation(customer, cut, defaultStaff, start.plusSeconds(30 * 60), null);
         assertThatThrownBy(() -> reservationRepository.saveAndFlush(overlapping))
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
@@ -246,14 +246,16 @@ class ReservationApiTest {
     }
 
     @Test
-    @DisplayName("직원을 생략하면 매장 주인이 담당자가 된다")
-    void staffDefaultsToOwner() throws Exception {
+    @DisplayName("담당자(staffId)가 없으면 예약할 수 없다 (400). 기본 담당자는 없다 (ADR 0011)")
+    void staffIdRequired() throws Exception {
         mockMvc.perform(post("/api/reservations")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(reservationJson(cut.getId(), "2026-10-01T14:00:00+09:00")))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.staffId").value(owner.getId()))
-                .andExpect(jsonPath("$.staffName").value("원장"));
+                        .content("""
+                                {"customerId":%d,"menuId":%d,"startAt":"2026-10-01T14:00:00+09:00"}
+                                """.formatted(customer.getId(), cut.getId())))
+                .andExpect(status().isBadRequest())
+                // 요청 검증(@NotNull)이 거절한 메시지다. 검증을 지워도 저장소가 null 번호를 거부해 같은 400이 나오므로, 메시지로 구분한다.
+                .andExpect(jsonPath("$.detail").value("Invalid request content."));
     }
 
     @Test
@@ -346,7 +348,7 @@ class ReservationApiTest {
                 .andExpect(jsonPath("$[1].staffPosition").value("디자이너"));
     }
 
-    /** API로 예약을 만들고 id를 돌려준다. 담당자는 생략(= 매장 주인). */
+    /** API로 예약을 만들고 id를 돌려준다. 담당자를 따로 정하지 않는 테스트는 기본 직원(원장)으로 예약한다. */
     private long book(TreatmentMenu menu, String startAt) throws Exception {
         String body = mockMvc.perform(post("/api/reservations")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -366,10 +368,9 @@ class ReservationApiTest {
         return Long.parseLong(body.replaceAll(".*\"id\":(\\d+).*", "$1"));
     }
 
+    /** 담당자를 따로 정하지 않는 테스트용: 기본 직원(원장)이 담당한다. */
     private String reservationJson(Long menuId, String startAt) {
-        return """
-                {"customerId":%d,"menuId":%d,"startAt":"%s","memo":"첫 방문"}
-                """.formatted(customer.getId(), menuId, startAt);
+        return reservationJson(menuId, startAt, defaultStaff.getId());
     }
 
     private String reservationJson(Long menuId, String startAt, Long staffId) {

@@ -111,12 +111,12 @@ class DevDataSeederTest {
     }
 
     @Test
-    @DisplayName("직원은 4명이고, 주인은 원장 1명이며, 근무를 마친 직원이 1명 있다")
+    @DisplayName("직원은 4명이고, 원장이 있으며, 근무를 마친 직원이 1명 있다")
     void seedsStaff() {
         List<Staff> staff = staffRepository.findAll();
 
         assertThat(staff).hasSize(4);
-        assertThat(staff).filteredOn(Staff::isOwner).extracting(Staff::getName).containsExactly("원장");
+        assertThat(staff).extracting(Staff::getName).contains("원장");
         assertThat(staff).filteredOn(s -> !s.isActive()).extracting(Staff::getName).containsExactly("서하윤");
     }
 

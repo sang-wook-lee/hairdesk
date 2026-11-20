@@ -36,7 +36,7 @@ import java.util.Set;
  *
  * - "local" 프로필에서만 동작한다. (./gradlew bootRun 이 켜 준다. 테스트와 운영에는 절대 돌지 않는다)
  * - 메뉴나 고객이 하나라도 있으면 아무것도 하지 않는다. 그래서 매번 켜도 중복되지 않고, 직접 넣은 데이터도 안전하다.
- * - 직원은 4명이다: 원장(주인), 이지수 실장, 박민수 디자이너, 서하윤 인턴(30일 전까지 일하고 근무 종료).
+ * - 직원은 4명이다: 원장, 이지수 실장, 박민수 디자이너, 서하윤 인턴(30일 전까지 일하고 근무 종료).
  *   직원마다 하루 3타임을 따로 채우므로 같은 시간대에 여러 직원의 예약이 함께 보인다. (ADR 0010)
  * - 날짜는 "오늘 기준 상대 날짜"다: 과거 60일 이력 + 앞으로 일주일 예약. 며칠 뒤에 켜도 홈 화면이 비지 않는다.
  * - 엔티티와 DB 제약을 그대로 거치므로, 서비스 규칙(예약 겹침 불가 등)에 어긋난 가짜 데이터는 들어가지 않는다.
@@ -84,7 +84,7 @@ public class DevDataSeeder implements ApplicationRunner {
         List<TreatmentMenu> menus = seedMenus();
         List<Customer> customers = seedCustomers();
         List<Staff> staff = seedStaff();
-        Staff owner = staff.get(0);
+        Staff director = staff.get(0); // 원장
         Staff intern = staff.get(3);
         List<TreatmentMenu> sellable = menus.stream().filter(TreatmentMenu::isActive).toList();
 
@@ -103,7 +103,7 @@ public class DevDataSeeder implements ApplicationRunner {
                         continue; // 인턴은 그만둔 뒤로 예약을 받지 않는다
                     }
                     // 원장은 더 바쁘다. 과거일수록 바쁘고, 미래는 조금 덜 찼다고 본다.
-                    int fillRate = worker == owner ? (offset < 0 ? 65 : 50) : (offset < 0 ? 50 : 40);
+                    int fillRate = worker == director ? (offset < 0 ? 65 : 50) : (offset < 0 ? 50 : 40);
                     if (random.nextInt(100) >= fillRate) {
                         continue; // 빈 타임
                     }
@@ -188,13 +188,13 @@ public class DevDataSeeder implements ApplicationRunner {
     }
 
     /**
-     * 직원 4명. 맨 앞은 마이그레이션(V6)이 만든 원장(주인)이고, 나머지를 새로 만든다.
+     * 직원 4명. 맨 앞은 마이그레이션(V6)이 만든 원장이고, 나머지를 새로 만든다.
      * 순서가 의미를 가진다: [0] 원장, [1] 실장, [2] 디자이너, [3] 인턴(나중에 근무 종료).
      */
     private List<Staff> seedStaff() {
-        Staff owner = staffRepository.findByOwnerTrue().orElseThrow();
+        Staff director = staffRepository.findAllByOrderByIdAsc().get(0); // V6이 만든 첫 직원
         List<Staff> staff = new ArrayList<>();
-        staff.add(owner);
+        staff.add(director);
         staff.addAll(staffRepository.saveAll(List.of(
                 new Staff("이지수", "실장"),
                 new Staff("박민수", "디자이너"),

@@ -115,12 +115,8 @@ public class ReservationService {
         return ReservationResponse.from(reservation);
     }
 
-    /** staffId를 생략하면 매장 주인. 있으면 그 직원(없으면 404). */
+    /** 담당자. 요청에서 항상 직접 지정한다(@NotNull). 없는 직원이면 404. */
     private Staff findStaff(Long staffId) {
-        if (staffId == null) {
-            return staffRepository.findByOwnerTrue()
-                    .orElseThrow(() -> new IllegalStateException("매장 주인이 지정되어 있지 않습니다."));
-        }
         return staffRepository.findById(staffId)
                 .orElseThrow(() -> new NotFoundException("직원을 찾을 수 없습니다. 직원 번호=" + staffId));
     }

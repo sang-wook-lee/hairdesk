@@ -46,7 +46,7 @@ class ReservationStaffOverlapTest {
     @Autowired StaffRepository staffRepository;
     @Autowired EntityManager entityManager;
 
-    Staff owner;     // 마이그레이션이 만든 기본 직원(원장)
+    Staff defaultStaff;     // V6 마이그레이션이 만든 기본 직원(원장)
     Staff designer;  // 두 번째 직원
     Customer mother;
     Customer child;
@@ -57,7 +57,7 @@ class ReservationStaffOverlapTest {
 
     @BeforeEach
     void setUp() {
-        owner = staffRepository.findByOwnerTrue().orElseThrow();
+        defaultStaff = staffRepository.findAllByOrderByIdAsc().get(0);
         designer = staffRepository.save(new Staff("이지수", "디자이너"));
         mother = customerRepository.save(new Customer("김어머니", "01011112222", null, null, false));
         child = customerRepository.save(new Customer("김자녀", "01011112222", null, null, false)); // 번호를 같이 쓰는 가족
@@ -67,9 +67,9 @@ class ReservationStaffOverlapTest {
     @Test
     @DisplayName("같은 직원의 시간이 겹치는 예약은 DB가 거부한다")
     void sameStaffOverlapRejected() {
-        reservationRepository.saveAndFlush(new Reservation(mother, cut, owner, START, null));
+        reservationRepository.saveAndFlush(new Reservation(mother, cut, defaultStaff, START, null));
 
-        Reservation overlapping = new Reservation(child, cut, owner, START.plusSeconds(30 * 60), null);
+        Reservation overlapping = new Reservation(child, cut, defaultStaff, START.plusSeconds(30 * 60), null);
         assertThatThrownBy(() -> reservationRepository.saveAndFlush(overlapping))
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
@@ -77,7 +77,7 @@ class ReservationStaffOverlapTest {
     @Test
     @DisplayName("다른 직원이면 같은 시간에도 예약할 수 있다")
     void differentStaffSameTimeAllowed() {
-        reservationRepository.saveAndFlush(new Reservation(mother, cut, owner, START, null));
+        reservationRepository.saveAndFlush(new Reservation(mother, cut, defaultStaff, START, null));
         reservationRepository.saveAndFlush(new Reservation(child, cut, designer, START, null));
 
         assertThat(reservationRepository.findAll()).hasSize(2);
@@ -86,7 +86,7 @@ class ReservationStaffOverlapTest {
     @Test
     @DisplayName("같은 고객이 같은 시간에 서로 다른 직원에게 예약할 수 있다 (가족과 함께 오는 경우)")
     void sameCustomerTwoStaffSameTimeAllowed() {
-        reservationRepository.saveAndFlush(new Reservation(mother, cut, owner, START, null));
+        reservationRepository.saveAndFlush(new Reservation(mother, cut, defaultStaff, START, null));
         reservationRepository.saveAndFlush(new Reservation(mother, cut, designer, START, null));
 
         List<Reservation> all = reservationRepository.findAll();
@@ -97,9 +97,9 @@ class ReservationStaffOverlapTest {
     @Test
     @DisplayName("같은 직원이라도 앞 예약이 끝나는 시각에 다음 예약이 시작하면 겹치지 않는다")
     void backToBackAllowed() {
-        reservationRepository.saveAndFlush(new Reservation(mother, cut, owner, START, null));
+        reservationRepository.saveAndFlush(new Reservation(mother, cut, defaultStaff, START, null));
         // 15:00 시작 = 앞 예약(14:00~15:00)이 끝나는 시각. 구간은 [시작, 끝)이라 맞닿는 것은 허용.
-        reservationRepository.saveAndFlush(new Reservation(child, cut, owner, START.plusSeconds(60 * 60), null));
+        reservationRepository.saveAndFlush(new Reservation(child, cut, defaultStaff, START.plusSeconds(60 * 60), null));
 
         assertThat(reservationRepository.findAll()).hasSize(2);
     }
@@ -107,11 +107,11 @@ class ReservationStaffOverlapTest {
     @Test
     @DisplayName("취소된 예약은 자리를 차지하지 않아 같은 직원이 같은 시간에 다시 받을 수 있다")
     void cancelledFreesSlot() {
-        Reservation first = reservationRepository.saveAndFlush(new Reservation(mother, cut, owner, START, null));
+        Reservation first = reservationRepository.saveAndFlush(new Reservation(mother, cut, defaultStaff, START, null));
         first.cancel();
         reservationRepository.saveAndFlush(first);
 
-        reservationRepository.saveAndFlush(new Reservation(child, cut, owner, START, null));
+        reservationRepository.saveAndFlush(new Reservation(child, cut, defaultStaff, START, null));
 
         assertThat(reservationRepository.findAll()).hasSize(2);
     }

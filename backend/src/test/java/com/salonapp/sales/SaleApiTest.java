@@ -28,6 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -49,14 +50,14 @@ class SaleApiTest {
     @Autowired SaleRepository saleRepository;
     @Autowired StaffRepository staffRepository;
 
-    Staff owner;        // 마이그레이션이 만든 기본 직원(원장)
+    Staff defaultStaff;        // V6 마이그레이션이 만든 기본 직원(원장)
     Staff designer;     // 두 번째 직원
     Customer customer;
     TreatmentMenu cut;  // 정가 20000원
 
     @BeforeEach
     void setUp() {
-        owner = staffRepository.findByOwnerTrue().orElseThrow();
+        defaultStaff = staffRepository.findAllByOrderByIdAsc().get(0);
         designer = staffRepository.save(new Staff("이지수", "디자이너"));
         customer = customerRepository.save(new Customer("김민지", "01012345678", null, null, false));
         cut = menuRepository.save(new TreatmentMenu("커트", MenuCategory.CUT, 20000, 60, 1));
@@ -146,8 +147,8 @@ class SaleApiTest {
     @DisplayName("예약 없이 고객과 메뉴로 워크인 매출을 등록할 수 있고, 여러 건 가능하다")
     void walkIn() throws Exception {
         String body = """
-                {"customerId":%d,"menuId":%d,"paymentMethod":"CASH"}
-                """.formatted(customer.getId(), cut.getId());
+                {"customerId":%d,"menuId":%d,"staffId":%d,"paymentMethod":"CASH"}
+                """.formatted(customer.getId(), cut.getId(), defaultStaff.getId());
 
         mockMvc.perform(post("/api/sales").contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isCreated())
@@ -184,8 +185,8 @@ class SaleApiTest {
     @DisplayName("음수 금액은 400, 0원(무료 서비스)은 허용한다")
     void amountValidation() throws Exception {
         String base = """
-                {"customerId":%d,"menuId":%d,"paymentMethod":"CASH","amount":%%d}
-                """.formatted(customer.getId(), cut.getId());
+                {"customerId":%d,"menuId":%d,"staffId":%d,"paymentMethod":"CASH","amount":%%d}
+                """.formatted(customer.getId(), cut.getId(), defaultStaff.getId());
 
         mockMvc.perform(post("/api/sales").contentType(MediaType.APPLICATION_JSON).content(base.formatted(-1)))
                 .andExpect(status().isBadRequest());
@@ -291,14 +292,13 @@ class SaleApiTest {
     }
 
     @Test
-    @DisplayName("워크인 매출에 직원을 생략하면 매장 주인이 담당자가 된다")
-    void walkInDefaultsToOwner() throws Exception {
+    @DisplayName("워크인 매출에 담당자(staffId)가 없으면 등록할 수 없다 (400). 기본 담당자는 없다 (ADR 0011)")
+    void walkInStaffIdRequired() throws Exception {
         mockMvc.perform(post("/api/sales")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(walkInJson(null)))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.staffId").value(owner.getId()))
-                .andExpect(jsonPath("$.staffName").value("원장"));
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value(containsString("staffId"))); // 필수 검사가 만든 메시지
     }
 
     @Test
@@ -356,7 +356,7 @@ class SaleApiTest {
     void listIncludesStaff() throws Exception {
         mockMvc.perform(post("/api/sales")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(walkInJson(null, "2026-10-01T10:00:00+09:00")))
+                        .content(walkInJson(defaultStaff.getId(), "2026-10-01T10:00:00+09:00")))
                 .andExpect(status().isCreated());
         mockMvc.perform(post("/api/sales")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -392,10 +392,10 @@ class SaleApiTest {
     }
 
     private Reservation bookedReservation(String startAt) {
-        return reservationRepository.saveAndFlush(new Reservation(customer, cut, owner, Instant.parse(startAt), null));
+        return reservationRepository.saveAndFlush(new Reservation(customer, cut, defaultStaff, Instant.parse(startAt), null));
     }
 
-    /** 워크인 매출 요청 JSON. staffId가 null이면 키를 아예 보내지 않는다(= 생략). */
+    /** 워크인 매출 요청 JSON. staffId가 null이면 키를 아예 보내지 않는다(= 담당자 없음 → 400). */
     private String walkInJson(Long staffId) {
         return walkInJson(staffId, "2026-10-01T10:00:00+09:00");
     }
@@ -411,13 +411,13 @@ class SaleApiTest {
         return paySale(menu, amount, "CARD", paidAt);
     }
 
-    /** 워크인 매출을 API로 등록하고 id를 돌려준다. */
+    /** 워크인 매출을 API로 등록하고 id를 돌려준다. 담당자는 기본 직원(원장). */
     private long paySale(TreatmentMenu menu, int amount, String method, String paidAt) throws Exception {
         String body = mockMvc.perform(post("/api/sales")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"customerId":%d,"menuId":%d,"amount":%d,"paymentMethod":"%s","paidAt":"%s"}
-                                """.formatted(customer.getId(), menu.getId(), amount, method, paidAt)))
+                                {"customerId":%d,"menuId":%d,"staffId":%d,"amount":%d,"paymentMethod":"%s","paidAt":"%s"}
+                                """.formatted(customer.getId(), menu.getId(), defaultStaff.getId(), amount, method, paidAt)))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
         return Long.parseLong(body.replaceAll(".*\"id\":(\\d+).*", "$1"));
