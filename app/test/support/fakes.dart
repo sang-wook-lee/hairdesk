@@ -87,7 +87,10 @@ class FakeStaffRepository implements StaffRepository {
   FakeStaffRepository(this.staff);
 
   final List<Staff> staff;
+  final List<StaffInput> created = [];
+  final List<(int, StaffInput)> updated = []; // (직원 번호, 보낸 값)
   ApiException? failOnFetch;
+  ApiException? failOnSave; // 등록·수정이 실패하게 만든다
   final List<bool> fetchedWithInactive = []; // fetchAll이 받은 includeInactive 값을 순서대로 기록
 
   @override
@@ -97,12 +100,28 @@ class FakeStaffRepository implements StaffRepository {
     return staff.where((s) => includeInactive || s.active).toList();
   }
 
-  // 아래는 이후 조각(등록·수정·근무 종료·주인 지정 화면)에서 필요해질 때 채운다.
   @override
-  Future<Staff> create(StaffInput input) async => throw UnimplementedError();
+  Future<Staff> create(StaffInput input) async {
+    if (failOnSave != null) throw failOnSave!;
+    created.add(input);
+    // 서버처럼: 새 직원은 번호가 이어지고 항상 주인이 아니며 근무 중이다. 이름·직책이 같아도 등록된다.
+    final nextId = staff.isEmpty ? 1 : staff.map((s) => s.id).reduce((a, b) => a > b ? a : b) + 1;
+    final newStaff = Staff(id: nextId, name: input.name, position: input.position, owner: false, active: true);
+    staff.add(newStaff);
+    return newStaff;
+  }
 
   @override
-  Future<Staff> update(int id, StaffInput input) async => throw UnimplementedError();
+  Future<Staff> update(int id, StaffInput input) async {
+    if (failOnSave != null) throw failOnSave!;
+    updated.add((id, input));
+    final index = staff.indexWhere((s) => s.id == id);
+    final old = staff[index];
+    staff[index] = Staff(id: id, name: input.name, position: input.position, owner: old.owner, active: old.active);
+    return staff[index];
+  }
+
+  // 아래는 다음 조각(근무 종료·재개, 주인 지정)에서 필요해질 때 채운다.
 
   @override
   Future<void> setActive(int id, {required bool active}) async => throw UnimplementedError();

@@ -3,11 +3,12 @@ import 'package:flutter/material.dart';
 import '../../core/error_message.dart';
 import '../../core/error_view.dart';
 import 'staff.dart';
+import 'staff_form_page.dart';
 import 'staff_repository.dart';
 
 /// 직원 목록 화면. 메뉴 목록 화면과 같은 모양이다. (근무 종료 직원은 스위치를 켜야 보인다)
 ///
-/// 이 화면은 지금 "보여주기"만 한다. 등록·수정, 근무 종료·재개, 주인 지정은 다음 조각에서 붙인다.
+/// 지금은 보기와 등록·수정을 한다. 근무 종료·재개, 주인 지정은 다음 조각에서 붙인다.
 class StaffListPage extends StatefulWidget {
   const StaffListPage({super.key, required this.repository, this.appBarBottom});
 
@@ -36,6 +37,16 @@ class _StaffListPageState extends State<StaffListPage> {
     setState(() {
       _staff = _load();
     });
+  }
+
+  /// 폼 화면을 열고, 저장하고 돌아왔으면(true) 목록을 새로고침한다. [staff]가 null이면 새 직원 등록.
+  Future<void> _openForm({Staff? staff}) async {
+    final saved = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => StaffFormPage(repository: widget.repository, staff: staff),
+      ),
+    );
+    if (saved == true) _reload();
   }
 
   @override
@@ -72,9 +83,17 @@ class _StaffListPageState extends State<StaffListPage> {
           }
           return ListView.builder(
             itemCount: staff.length,
-            itemBuilder: (context, index) => StaffTile(staff: staff[index]),
+            itemBuilder: (context, index) => StaffTile(
+              staff: staff[index],
+              onTap: () => _openForm(staff: staff[index]),
+            ),
           );
         },
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _openForm(),
+        icon: const Icon(Icons.add),
+        label: const Text('직원 추가'),
       ),
     );
   }
@@ -83,9 +102,10 @@ class _StaffListPageState extends State<StaffListPage> {
 /// 직원 한 줄. 이름은 번호와 함께 보여준다 (동명이인 구별).
 /// 주인에게는 "주인" 표시를, 근무를 마친 직원은 회색과 "근무 종료"를 붙인다.
 class StaffTile extends StatelessWidget {
-  const StaffTile({super.key, required this.staff});
+  const StaffTile({super.key, required this.staff, required this.onTap});
 
   final Staff staff;
+  final VoidCallback onTap; // 누르면 수정 폼을 연다
 
   @override
   Widget build(BuildContext context) {
@@ -103,6 +123,7 @@ class StaffTile extends StatelessWidget {
               side: BorderSide.none,
             )
           : null,
+      onTap: onTap,
     );
   }
 }
