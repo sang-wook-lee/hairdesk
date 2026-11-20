@@ -16,6 +16,8 @@ import 'package:hairdesk/features/sales/sale.dart';
 import 'package:hairdesk/features/sales/sale_repository.dart';
 import 'package:hairdesk/features/stats/stats.dart';
 import 'package:hairdesk/features/stats/stats_repository.dart';
+import 'package:hairdesk/features/staff/staff.dart';
+import 'package:hairdesk/features/staff/staff_repository.dart';
 
 // ---------------------------------------------------------------- 메뉴
 
@@ -77,6 +79,40 @@ Menu menuOf(int id, String name, {int price = 20000, int minutes = 60, bool acti
     active: active,
     displayOrder: id,
   );
+}
+
+// ---------------------------------------------------------------- 직원
+
+class FakeStaffRepository implements StaffRepository {
+  FakeStaffRepository(this.staff);
+
+  final List<Staff> staff;
+  ApiException? failOnFetch;
+  final List<bool> fetchedWithInactive = []; // fetchAll이 받은 includeInactive 값을 순서대로 기록
+
+  @override
+  Future<List<Staff>> fetchAll({bool includeInactive = false}) async {
+    fetchedWithInactive.add(includeInactive);
+    if (failOnFetch != null) throw failOnFetch!;
+    return staff.where((s) => includeInactive || s.active).toList();
+  }
+
+  // 아래는 이후 조각(등록·수정·근무 종료·주인 지정 화면)에서 필요해질 때 채운다.
+  @override
+  Future<Staff> create(StaffInput input) async => throw UnimplementedError();
+
+  @override
+  Future<Staff> update(int id, StaffInput input) async => throw UnimplementedError();
+
+  @override
+  Future<void> setActive(int id, {required bool active}) async => throw UnimplementedError();
+
+  @override
+  Future<void> makeOwner(int id) async => throw UnimplementedError();
+}
+
+Staff staffOf(int id, String name, String position, {bool owner = false, bool active = true}) {
+  return Staff(id: id, name: name, position: position, owner: owner, active: active);
 }
 
 // ---------------------------------------------------------------- 고객

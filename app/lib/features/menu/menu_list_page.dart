@@ -9,10 +9,13 @@ import 'menu_repository.dart';
 
 /// 시술 메뉴 목록 화면. 메뉴 추가, 수정, 판매 중지/재개를 할 수 있다.
 class MenuListPage extends StatefulWidget {
-  const MenuListPage({super.key, required this.repository});
+  const MenuListPage({super.key, required this.repository, this.appBarBottom});
 
   /// 서버와 통신하는 저장소. 생성자로 받아서, 테스트에서는 가짜를 넣을 수 있다.
   final MenuRepository repository;
+
+  /// 앱바 아래에 붙일 위젯. "시술 메뉴 | 직원" 전환 버튼이 들어온다. (ManagePage)
+  final PreferredSizeWidget? appBarBottom;
 
   @override
   State<MenuListPage> createState() => _MenuListPageState();
@@ -70,6 +73,7 @@ class _MenuListPageState extends State<MenuListPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('시술 메뉴'),
+        bottom: widget.appBarBottom,
         actions: [
           const Text('판매 중지 포함'),
           Switch(
