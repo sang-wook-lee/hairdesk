@@ -11,6 +11,8 @@ import com.salonapp.reservation.repository.ReservationRepository;
 import com.salonapp.sales.domain.PaymentMethod;
 import com.salonapp.sales.domain.Sale;
 import com.salonapp.sales.repository.SaleRepository;
+import com.salonapp.staff.domain.Staff;
+import com.salonapp.staff.repository.StaffRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
@@ -58,6 +60,7 @@ public class DevDataSeeder implements ApplicationRunner {
     private final CustomerRepository customerRepository;
     private final ReservationRepository reservationRepository;
     private final SaleRepository saleRepository;
+    private final StaffRepository staffRepository;
 
     @Override
     @Transactional
@@ -73,6 +76,8 @@ public class DevDataSeeder implements ApplicationRunner {
         Random random = new Random(42);
         List<TreatmentMenu> menus = seedMenus();
         List<Customer> customers = seedCustomers();
+        // TODO(직원 5단계): 직원 여러 명을 만들어 나눠 배정한다. 그 전까지는 모두 매장 주인(원장)이 담당한다.
+        Staff owner = staffRepository.findByOwnerTrue().orElseThrow();
         List<TreatmentMenu> sellable = menus.stream().filter(TreatmentMenu::isActive).toList();
 
         LocalDate today = now.atZone(SEOUL).toLocalDate();
@@ -92,7 +97,7 @@ public class DevDataSeeder implements ApplicationRunner {
                 Customer customer = pickCustomer(customers, -offset, random);
                 Instant start = day.atTime(hour, 0).atZone(SEOUL).toInstant();
                 Reservation reservation = new Reservation(
-                        customer, menu, start, random.nextInt(100) < 15 ? MEMOS[random.nextInt(MEMOS.length)] : null);
+                        customer, menu, owner, start, random.nextInt(100) < 15 ? MEMOS[random.nextInt(MEMOS.length)] : null);
                 settle(reservation, now, random);
                 reservations++;
             }

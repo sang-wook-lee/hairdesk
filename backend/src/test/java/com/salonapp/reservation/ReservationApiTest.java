@@ -8,6 +8,8 @@ import com.salonapp.menu.domain.TreatmentMenu;
 import com.salonapp.menu.repository.TreatmentMenuRepository;
 import com.salonapp.reservation.domain.Reservation;
 import com.salonapp.reservation.repository.ReservationRepository;
+import com.salonapp.staff.domain.Staff;
+import com.salonapp.staff.repository.StaffRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -41,13 +43,16 @@ class ReservationApiTest {
     @Autowired CustomerRepository customerRepository;
     @Autowired TreatmentMenuRepository menuRepository;
     @Autowired ReservationRepository reservationRepository;
+    @Autowired StaffRepository staffRepository;
 
+    Staff owner;     // 마이그레이션이 만든 기본 직원(원장). 모든 테스트가 이 직원에서 시작한다.
     Customer customer;
     TreatmentMenu cut;   // 60분
     TreatmentMenu perm;  // 120분
 
     @BeforeEach
     void setUp() {
+        owner = staffRepository.findByOwnerTrue().orElseThrow();
         customer = customerRepository.save(new Customer("김민지", "01012345678", null, null, false));
         cut = menuRepository.save(new TreatmentMenu("커트", MenuCategory.CUT, 20000, 60, 1));
         perm = menuRepository.save(new TreatmentMenu("펌", MenuCategory.PERM, 80000, 120, 2));
@@ -215,10 +220,10 @@ class ReservationApiTest {
     @DisplayName("서비스 확인을 우회해도 DB 제약이 겹치는 예약을 막는다 (동시 요청 방어선)")
     void databaseConstraintIsLastDefense() {
         Instant start = Instant.parse("2026-10-01T05:00:00Z");
-        reservationRepository.saveAndFlush(new Reservation(customer, cut, start, null));
+        reservationRepository.saveAndFlush(new Reservation(customer, cut, owner, start, null));
 
         // 서비스의 사전 확인 없이 저장소에 바로 저장 = 동시에 들어온 두 번째 요청을 흉내 낸다.
-        Reservation overlapping = new Reservation(customer, cut, start.plusSeconds(30 * 60), null);
+        Reservation overlapping = new Reservation(customer, cut, owner, start.plusSeconds(30 * 60), null);
         assertThatThrownBy(() -> reservationRepository.saveAndFlush(overlapping))
                 .isInstanceOf(DataIntegrityViolationException.class);
     }

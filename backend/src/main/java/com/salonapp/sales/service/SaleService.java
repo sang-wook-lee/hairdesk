@@ -16,6 +16,8 @@ import com.salonapp.sales.dto.SaleResponse;
 import com.salonapp.sales.dto.SaleUpdateRequest;
 import com.salonapp.sales.dto.SalesSummaryResponse;
 import com.salonapp.sales.repository.SaleRepository;
+import com.salonapp.staff.domain.Staff;
+import com.salonapp.staff.repository.StaffRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,6 +35,7 @@ public class SaleService {
     private final ReservationRepository reservationRepository;
     private final CustomerRepository customerRepository;
     private final TreatmentMenuRepository menuRepository;
+    private final StaffRepository staffRepository;
 
     /**
      * 매출 등록. 예약 기반인지 워크인인지에 따라 갈라진다.
@@ -85,7 +88,10 @@ public class SaleService {
         TreatmentMenu menu = menuRepository.findById(request.menuId())
                 .orElseThrow(() -> new NotFoundException("메뉴를 찾을 수 없습니다. id=" + request.menuId()));
         // 판매 중지 메뉴도 매출은 받을 수 있게 둔다: 이미 시술이 끝난 뒤 기록하는 것이라 막을 이유가 없다.
-        return Sale.walkIn(customer, menu, request.amount(), request.paymentMethod(), paidAt, request.memo());
+        // TODO(직원 3단계): 요청의 staffId를 받도록 바꾼다(생략하면 주인). 그 전까지는 항상 매장 주인이 담당한다.
+        Staff staff = staffRepository.findByOwnerTrue()
+                .orElseThrow(() -> new IllegalStateException("매장 주인이 지정되어 있지 않습니다."));
+        return Sale.walkIn(customer, menu, staff, request.amount(), request.paymentMethod(), paidAt, request.memo());
     }
 
     /** 기간(from~to, 양쪽 포함, 서울 기준 날짜)의 매출을 최신순으로 */

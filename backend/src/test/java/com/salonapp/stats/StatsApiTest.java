@@ -11,6 +11,8 @@ import com.salonapp.reservation.repository.ReservationRepository;
 import com.salonapp.sales.domain.PaymentMethod;
 import com.salonapp.sales.domain.Sale;
 import com.salonapp.sales.repository.SaleRepository;
+import com.salonapp.staff.domain.Staff;
+import com.salonapp.staff.repository.StaffRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -40,7 +42,9 @@ class StatsApiTest {
     @Autowired TreatmentMenuRepository menuRepository;
     @Autowired ReservationRepository reservationRepository;
     @Autowired SaleRepository saleRepository;
+    @Autowired StaffRepository staffRepository;
 
+    Staff owner;         // 마이그레이션이 만든 기본 직원(원장)
     Customer minji;
     Customer haneul;
     TreatmentMenu cut;   // 정가 20000
@@ -48,6 +52,7 @@ class StatsApiTest {
 
     @BeforeEach
     void setUp() {
+        owner = staffRepository.findByOwnerTrue().orElseThrow();
         minji = customerRepository.save(new Customer("김민지", "01012345678", null, null, false));
         haneul = customerRepository.save(new Customer("이하늘", "01099990000", null, null, false));
         cut = menuRepository.save(new TreatmentMenu("커트", MenuCategory.CUT, 20000, 60, 1));
@@ -235,13 +240,13 @@ class StatsApiTest {
 
     /** 워크인 매출을 저장소로 바로 넣는다 (통계 검증에 집중하려고 API를 거치지 않는다). */
     private void sell(Customer customer, TreatmentMenu menu, int amount, String paidAt) {
-        saleRepository.saveAndFlush(Sale.walkIn(customer, menu, amount, PaymentMethod.CARD,
+        saleRepository.saveAndFlush(Sale.walkIn(customer, menu, owner, amount, PaymentMethod.CARD,
                 OffsetDateTime.parse(paidAt).toInstant(), null));
     }
 
     /** 예약(BOOKED)을 저장하고 돌려준다. 시간은 호출부에서 서로 겹치지 않게 2시간 간격으로 준다. */
     private Reservation reserve(String startAtUtc) {
         return reservationRepository.saveAndFlush(
-                new Reservation(minji, cut, OffsetDateTime.parse(startAtUtc).toInstant(), null));
+                new Reservation(minji, cut, owner, OffsetDateTime.parse(startAtUtc).toInstant(), null));
     }
 }

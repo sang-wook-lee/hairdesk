@@ -4,6 +4,7 @@ import com.salonapp.common.domain.BaseTimeEntity;
 import com.salonapp.customer.domain.Customer;
 import com.salonapp.menu.domain.TreatmentMenu;
 import com.salonapp.reservation.domain.Reservation;
+import com.salonapp.staff.domain.Staff;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -50,6 +51,15 @@ public class Sale extends BaseTimeEntity {
     @JoinColumn(name = "menu_id")
     private TreatmentMenu menu;
 
+    /**
+     * 이 결제의 담당자. (ADR 0010, V7)
+     * 예약 결제는 예약의 담당자를 따르고, 워크인은 직접 정한다.
+     * 이름은 복사하지 않고 연결만 한다. 직원 이름을 고치면 과거 매출에도 새 이름이 보인다.
+     */
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "staff_id")
+    private Staff staff;
+
     /** 결제 시점 메뉴 이름 (스냅샷) */
     @Column(name = "menu_name", nullable = false, length = 50)
     private String menuName;
@@ -72,27 +82,35 @@ public class Sale extends BaseTimeEntity {
     @Column(length = 500)
     private String memo;
 
-    /** 예약 건의 매출. 고객과 메뉴는 예약에서 그대로 가져온다. amount가 null이면 정가를 받은 것으로 본다. */
+    /** 예약 건의 매출. 고객·메뉴·담당자는 예약에서 그대로 가져온다. amount가 null이면 정가를 받은 것으로 본다. */
     public static Sale forReservation(Reservation reservation, Integer amount,
                                       PaymentMethod method, Instant paidAt, String memo) {
         Sale sale = new Sale();
         sale.reservation = reservation;
-        sale.fill(reservation.getCustomer(), reservation.getMenu(), amount, method, paidAt, memo);
+        sale.fill(reservation.getCustomer(), reservation.getMenu(), reservation.getStaff(), amount, method, paidAt, memo);
         return sale;
     }
 
-    /** 예약 없이 온 손님의 매출 */
-    public static Sale walkIn(Customer customer, TreatmentMenu menu, Integer amount,
+    /**
+     * 예약 없이 온 손님의 매출.
+     * 근무를 마친 직원도 담당자로 기록할 수 있다. 매출은 이미 끝난 시술을 적는 것이기 때문이다.
+     * (판매 중지 메뉴로도 매출을 받을 수 있게 둔 것과 같은 이유)
+     */
+    public static Sale walkIn(Customer customer, TreatmentMenu menu, Staff staff, Integer amount,
                               PaymentMethod method, Instant paidAt, String memo) {
         Sale sale = new Sale();
-        sale.fill(customer, menu, amount, method, paidAt, memo);
+        sale.fill(customer, menu, staff, amount, method, paidAt, memo);
         return sale;
     }
 
-    private void fill(Customer customer, TreatmentMenu menu, Integer amount,
+    private void fill(Customer customer, TreatmentMenu menu, Staff staff, Integer amount,
                       PaymentMethod method, Instant paidAt, String memo) {
+        if (staff == null) {
+            throw new IllegalArgumentException("담당자는 필수입니다.");
+        }
         this.customer = customer;
         this.menu = menu;
+        this.staff = staff;
         this.menuName = menu.getName();
         this.price = menu.getPrice();
         correct(amount == null ? menu.getPrice() : amount, method, paidAt, memo);

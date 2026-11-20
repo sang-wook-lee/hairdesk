@@ -11,6 +11,8 @@ import com.salonapp.reservation.repository.ReservationRepository;
 import com.salonapp.sales.domain.PaymentMethod;
 import com.salonapp.sales.domain.Sale;
 import com.salonapp.sales.repository.SaleRepository;
+import com.salonapp.staff.domain.Staff;
+import com.salonapp.staff.repository.StaffRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -45,12 +47,15 @@ class SaleApiTest {
     @Autowired TreatmentMenuRepository menuRepository;
     @Autowired ReservationRepository reservationRepository;
     @Autowired SaleRepository saleRepository;
+    @Autowired StaffRepository staffRepository;
 
+    Staff owner;        // 마이그레이션이 만든 기본 직원(원장)
     Customer customer;
     TreatmentMenu cut;  // 정가 20000원
 
     @BeforeEach
     void setUp() {
+        owner = staffRepository.findByOwnerTrue().orElseThrow();
         customer = customerRepository.save(new Customer("김민지", "01012345678", null, null, false));
         cut = menuRepository.save(new TreatmentMenu("커트", MenuCategory.CUT, 20000, 60, 1));
     }
@@ -270,7 +275,7 @@ class SaleApiTest {
     }
 
     private Reservation bookedReservation(String startAt) {
-        return reservationRepository.saveAndFlush(new Reservation(customer, cut, Instant.parse(startAt), null));
+        return reservationRepository.saveAndFlush(new Reservation(customer, cut, owner, Instant.parse(startAt), null));
     }
 
     private long paySale(TreatmentMenu menu, int amount, String paidAt) throws Exception {

@@ -13,6 +13,8 @@ import com.salonapp.reservation.dto.RescheduleRequest;
 import com.salonapp.reservation.dto.ReservationRequest;
 import com.salonapp.reservation.dto.ReservationResponse;
 import com.salonapp.reservation.repository.ReservationRepository;
+import com.salonapp.staff.domain.Staff;
+import com.salonapp.staff.repository.StaffRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,6 +36,7 @@ public class ReservationService {
     private final ReservationRepository reservationRepository;
     private final CustomerRepository customerRepository;
     private final TreatmentMenuRepository menuRepository;
+    private final StaffRepository staffRepository;
 
     @Transactional
     public ReservationResponse create(ReservationRequest request) {
@@ -45,7 +48,11 @@ public class ReservationService {
             throw new IllegalArgumentException("판매 중지된 메뉴입니다: " + menu.getName());
         }
 
-        Reservation reservation = new Reservation(customer, menu, request.startAt().toInstant(), request.memo());
+        // TODO(직원 2단계): 요청의 staffId를 받도록 바꾼다. 그 전까지는 항상 매장 주인이 담당한다.
+        Staff staff = staffRepository.findByOwnerTrue()
+                .orElseThrow(() -> new IllegalStateException("매장 주인이 지정되어 있지 않습니다."));
+
+        Reservation reservation = new Reservation(customer, menu, staff, request.startAt().toInstant(), request.memo());
         // 먼저 확인해서 친절한 메시지로 409를 준다. 동시 요청은 DB의 EXCLUDE 제약이 최종적으로 막는다.
         if (reservationRepository.existsByStatusInAndStartAtLessThanAndEndAtGreaterThan(
                 OCCUPYING, reservation.getEndAt(), reservation.getStartAt())) {

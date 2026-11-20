@@ -3,6 +3,7 @@ package com.salonapp.reservation.domain;
 import com.salonapp.common.domain.BaseTimeEntity;
 import com.salonapp.customer.domain.Customer;
 import com.salonapp.menu.domain.TreatmentMenu;
+import com.salonapp.staff.domain.Staff;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -45,6 +46,11 @@ public class Reservation extends BaseTimeEntity {
     @JoinColumn(name = "menu_id")
     private TreatmentMenu menu;
 
+    // 담당자. 겹침은 "같은 담당자의 예약끼리만" 판단한다. (ADR 0010, V7)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "staff_id")
+    private Staff staff;
+
     @Column(name = "start_at", nullable = false)
     private Instant startAt;
 
@@ -59,12 +65,20 @@ public class Reservation extends BaseTimeEntity {
     private String memo;
 
     /** 종료 시각은 시작 시각 + 메뉴 소요시간으로 여기서 계산한다. */
-    public Reservation(Customer customer, TreatmentMenu menu, Instant startAt, String memo) {
+    public Reservation(Customer customer, TreatmentMenu menu, Staff staff, Instant startAt, String memo) {
         if (startAt == null) {
             throw new IllegalArgumentException("예약 시작 시각은 필수입니다.");
         }
+        if (staff == null) {
+            throw new IllegalArgumentException("담당자는 필수입니다.");
+        }
+        // 근무를 마친 직원에게는 새 예약을 잡을 수 없다. (과거 예약은 그대로 남는다)
+        if (!staff.isActive()) {
+            throw new IllegalStateException("근무를 마친 직원에게는 예약할 수 없습니다. 직원 번호=" + staff.getId());
+        }
         this.customer = customer;
         this.menu = menu;
+        this.staff = staff;
         this.startAt = startAt;
         this.endAt = startAt.plus(Duration.ofMinutes(menu.getDurationMinutes()));
         this.status = ReservationStatus.BOOKED;
