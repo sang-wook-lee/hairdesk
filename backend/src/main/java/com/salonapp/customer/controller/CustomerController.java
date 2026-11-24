@@ -3,7 +3,9 @@ package com.salonapp.customer.controller;
 import com.salonapp.common.dto.PageResponse;
 import com.salonapp.customer.dto.CustomerRequest;
 import com.salonapp.customer.dto.CustomerResponse;
+import com.salonapp.customer.dto.CustomerSummaryResponse;
 import com.salonapp.customer.service.CustomerService;
+import com.salonapp.customer.service.CustomerSummaryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -31,6 +33,7 @@ import java.net.URI;
  * GET  /api/customers?keyword=5678&page=0    검색 (이름 또는 번호 일부), 페이징
  * GET  /api/customers/{id}                   단건 조회
  * PUT  /api/customers/{id}                   수정
+ * GET  /api/customers/{id}/summary           요약 (방문 횟수, 총 결제액, 첫·최근 방문일, 최근 시술 등)
  *
  * 삭제 API는 아직 없다. 개인정보 파기 정책을 정한 뒤 추가한다. (ADR 0002)
  */
@@ -41,6 +44,7 @@ import java.net.URI;
 public class CustomerController {
 
     private final CustomerService customerService;
+    private final CustomerSummaryService customerSummaryService;
 
     @Operation(summary = "고객 등록", description = "번호는 하이픈 유무 상관없음. 이름+번호가 같은 고객이 있으면 409")
     @PostMapping
@@ -62,6 +66,14 @@ public class CustomerController {
     @GetMapping("/{id}")
     public CustomerResponse findById(@PathVariable Long id) {
         return customerService.findById(id);
+    }
+
+    @Operation(summary = "고객 요약",
+            description = "방문 횟수(매출 기록 수), 총·평균 결제액, 첫·최근 방문일, 예약·취소·노쇼 횟수, 최근 시술 메뉴와 담당. "
+                    + "매출이 없으면 횟수·금액은 0, 날짜·평균·최근 시술은 null. 없는 고객은 404")
+    @GetMapping("/{id}/summary")
+    public CustomerSummaryResponse summary(@PathVariable Long id) {
+        return customerSummaryService.summarize(id);
     }
 
     @Operation(summary = "고객 수정")
