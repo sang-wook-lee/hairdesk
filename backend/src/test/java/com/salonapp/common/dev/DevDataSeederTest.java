@@ -167,9 +167,11 @@ class DevDataSeederTest {
         mockMvc.perform(get("/api/stats/sales/by-menu").param("from", from.toString()).param("to", today.toString()))
                 .andExpect(status().isOk());
 
-        // 단골(전 기간)과 신규(최근 3주)가 모두 있어야 한다: 최근 30일 기준으로 재방문과 신규가 모두 0보다 크다
+        // 단골(전 기간)과 신규(최근 3주부터 등장)가 모두 있어야 한다.
+        // 기간은 시더가 신규 고객을 등장시키는 21일에 맞춘다. 14일로 하면 오늘이 화~목일 때 신규가 0명이 되어
+        // 실패한다(시더가 일요일을 건너뛰어 난수 순서가 요일마다 달라지기 때문. 요일 7개로 직접 확인함).
         String customers = mockMvc.perform(get("/api/stats/customers")
-                        .param("from", today.minusDays(14).toString()).param("to", today.toString()))
+                        .param("from", today.minusDays(21).toString()).param("to", today.toString()))
                 .andReturn().getResponse().getContentAsString();
         assertThat(customers).doesNotContain("\"returningCustomers\":0").doesNotContain("\"newCustomers\":0");
 
