@@ -1,5 +1,6 @@
 package com.salonapp.reservation.repository;
 
+import com.salonapp.customer.dto.ReservationStatusCount;
 import com.salonapp.reservation.domain.Reservation;
 import com.salonapp.reservation.domain.ReservationStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -37,4 +38,14 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
     /** 위와 같지만 자기 자신은 제외 (시간 변경용) */
     boolean existsByStaffIdAndStatusInAndStartAtLessThanAndEndAtGreaterThanAndIdNot(
             Long staffId, Collection<ReservationStatus> statuses, Instant end, Instant start, Long id);
+
+    /** 한 고객의 예약 상태별 건수. 예약이 없는 상태는 줄 자체가 나오지 않는다. (고객 요약용) */
+    @Query("""
+            select new com.salonapp.customer.dto.ReservationStatusCount(r.status, count(r))
+            from Reservation r
+            where r.customer.id = :customerId
+            group by r.status
+            order by r.status
+            """)
+    List<ReservationStatusCount> countByStatusForCustomer(@Param("customerId") Long customerId);
 }

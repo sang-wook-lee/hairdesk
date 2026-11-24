@@ -1,13 +1,16 @@
 package com.salonapp.sales.repository;
 
+import com.salonapp.customer.dto.CustomerSaleTotals;
 import com.salonapp.sales.domain.Sale;
 import com.salonapp.sales.dto.MethodTotal;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 
 public interface SaleRepository extends JpaRepository<Sale, Long> {
 
@@ -40,4 +43,24 @@ public interface SaleRepository extends JpaRepository<Sale, Long> {
             order by s.paymentMethod
             """)
     List<MethodTotal> summarizeByMethod(@Param("from") Instant from, @Param("to") Instant to);
+
+    /**
+     * 한 고객의 매출 집계: 방문 횟수(=매출 기록 수), 총 결제액, 첫·최근 방문일. (고객 요약용)
+     * 방문은 예약이 아니라 매출 기록으로 센다. 예약 없이 온 손님(워크인)도 방문에 들어간다.
+     * 매출이 없으면 횟수 0, 나머지는 null인 한 줄이 나온다. (CustomerSaleTotals 설명 참고)
+     */
+    @Query("""
+            select new com.salonapp.customer.dto.CustomerSaleTotals(count(s), sum(s.amount), min(s.paidAt), max(s.paidAt))
+            from Sale s
+            where s.customer.id = :customerId
+            """)
+    CustomerSaleTotals totalsByCustomer(@Param("customerId") Long customerId);
+
+    /**
+     * 한 고객의 가장 최근 결제 1건. (최근 시술 메뉴·담당 표시용)
+     * 같은 시각에 결제가 둘이면 번호가 큰 쪽이 최근이다. 기존 매출 목록과 같은 정렬 규칙.
+     * 담당자 이름을 쿼리 한 번에 함께 가져오려고 @EntityGraph로 staff를 지정한다.
+     */
+    @EntityGraph(attributePaths = "staff")
+    Optional<Sale> findFirstByCustomerIdOrderByPaidAtDescIdDesc(Long customerId);
 }
