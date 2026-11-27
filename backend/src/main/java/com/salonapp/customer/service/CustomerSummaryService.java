@@ -1,5 +1,6 @@
 package com.salonapp.customer.service;
 
+import com.salonapp.common.dto.PageResponse;
 import com.salonapp.common.exception.NotFoundException;
 import com.salonapp.common.time.SeoulDates;
 import com.salonapp.customer.dto.CustomerSaleTotals;
@@ -9,8 +10,11 @@ import com.salonapp.customer.repository.CustomerRepository;
 import com.salonapp.reservation.domain.ReservationStatus;
 import com.salonapp.reservation.repository.ReservationRepository;
 import com.salonapp.sales.domain.Sale;
+import com.salonapp.sales.dto.SaleResponse;
 import com.salonapp.sales.repository.SaleRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -62,6 +66,18 @@ public class CustomerSummaryService {
                 latest == null ? null : latest.getStaff().getName(),
                 latest == null ? null : latest.getStaff().getPosition()
         );
+    }
+
+    /**
+     * 고객의 방문 이력(매출 기록)을 최신순으로. 정렬은 저장소 쿼리에 고정돼 있어서,
+     * 클라이언트가 sort를 보내도 무시하고 페이지 번호와 크기만 쓴다.
+     */
+    public PageResponse<SaleResponse> visits(Long customerId, Pageable pageable) {
+        if (!customerRepository.existsById(customerId)) {
+            throw new NotFoundException("고객을 찾을 수 없습니다. id=" + customerId);
+        }
+        Pageable unsorted = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize());
+        return PageResponse.from(saleRepository.findVisitsByCustomer(customerId, unsorted).map(SaleResponse::from));
     }
 
     /** 상태별 건수 목록에서 한 상태의 건수. 그 상태의 예약이 없으면 줄이 없으므로 0이다. */

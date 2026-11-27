@@ -3,6 +3,8 @@ package com.salonapp.sales.repository;
 import com.salonapp.customer.dto.CustomerSaleTotals;
 import com.salonapp.sales.domain.Sale;
 import com.salonapp.sales.dto.MethodTotal;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -63,4 +65,20 @@ public interface SaleRepository extends JpaRepository<Sale, Long> {
      */
     @EntityGraph(attributePaths = "staff")
     Optional<Sale> findFirstByCustomerIdOrderByPaidAtDescIdDesc(Long customerId);
+
+    /**
+     * 한 고객의 방문 이력(매출 기록)을 최신순으로, 페이지 단위로. (고객 상세의 "방문 이력"용)
+     * 정렬은 쿼리에 고정한다(결제 시각, 같으면 번호가 큰 쪽이 먼저). Pageable에는 정렬을 담지 않는다.
+     * 응답에 고객·담당자 이름이 필요하므로 둘 다 JOIN FETCH. 페이징 + JOIN FETCH는 전체 개수를 세는
+     * 쿼리를 따로 지정해야 한다(countQuery).
+     */
+    @Query(value = """
+            select s from Sale s
+            join fetch s.customer
+            join fetch s.staff
+            where s.customer.id = :customerId
+            order by s.paidAt desc, s.id desc
+            """,
+            countQuery = "select count(s) from Sale s where s.customer.id = :customerId")
+    Page<Sale> findVisitsByCustomer(@Param("customerId") Long customerId, Pageable pageable);
 }
