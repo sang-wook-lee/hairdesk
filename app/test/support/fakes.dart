@@ -6,8 +6,11 @@ import 'dart:async';
 
 import 'package:hairdesk/core/api_client.dart';
 import 'package:hairdesk/core/kst.dart';
+import 'package:hairdesk/core/page_result.dart';
 import 'package:hairdesk/features/customer/customer.dart';
 import 'package:hairdesk/features/customer/customer_repository.dart';
+import 'package:hairdesk/features/customer/customer_summary.dart';
+import 'package:hairdesk/features/customer/customer_visit.dart';
 import 'package:hairdesk/features/menu/menu.dart';
 import 'package:hairdesk/features/menu/menu_repository.dart';
 import 'package:hairdesk/features/reservation/reservation.dart';
@@ -168,6 +171,20 @@ class FakeCustomerRepository implements CustomerRepository {
     customers.add(customer);
     return customer;
   }
+
+  // 고객 상세 화면을 만들 때 채운다. (지금은 이 가짜를 쓰는 화면이 없다)
+  @override
+  Future<Customer> findById(int id) async => throw UnimplementedError();
+
+  @override
+  Future<CustomerSummary> fetchSummary(int id) async => throw UnimplementedError();
+
+  @override
+  Future<PageResult<CustomerVisit>> fetchVisits(int id, {int page = 0, int size = 20}) async =>
+      throw UnimplementedError();
+
+  @override
+  Future<List<Reservation>> fetchUpcoming(int id) async => throw UnimplementedError();
 }
 
 Customer customerOf(int id, String name, String phone, {String? memo}) =>
