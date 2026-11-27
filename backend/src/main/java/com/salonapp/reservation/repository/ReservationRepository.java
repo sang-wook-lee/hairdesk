@@ -39,6 +39,21 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
     boolean existsByStaffIdAndStatusInAndStartAtLessThanAndEndAtGreaterThanAndIdNot(
             Long staffId, Collection<ReservationStatus> statuses, Instant end, Instant start, Long id);
 
+    /**
+     * 한 고객의 예약됨(BOOKED) 상태 예약 전부를 시작 시각 순으로. (고객 상세의 "다음 예약"용)
+     * 시작 시각이 이미 지났는데 완료·취소·노쇼 처리가 안 된 예약도 포함한다. 놓치지 않고 보여주려는 것.
+     * 같은 시각이면 번호가 작은 쪽이 먼저. 화면에 필요한 메뉴·담당자를 JOIN FETCH로 한 번에 가져온다.
+     */
+    @Query("""
+            select r from Reservation r
+            join fetch r.customer
+            join fetch r.menu
+            join fetch r.staff
+            where r.customer.id = :customerId and r.status = com.salonapp.reservation.domain.ReservationStatus.BOOKED
+            order by r.startAt, r.id
+            """)
+    List<Reservation> findBookedByCustomer(@Param("customerId") Long customerId);
+
     /** 한 고객의 예약 상태별 건수. 예약이 없는 상태는 줄 자체가 나오지 않는다. (고객 요약용) */
     @Query("""
             select new com.salonapp.customer.dto.ReservationStatusCount(r.status, count(r))

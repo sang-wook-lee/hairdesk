@@ -8,6 +8,7 @@ import com.salonapp.customer.dto.CustomerSummaryResponse;
 import com.salonapp.customer.dto.ReservationStatusCount;
 import com.salonapp.customer.repository.CustomerRepository;
 import com.salonapp.reservation.domain.ReservationStatus;
+import com.salonapp.reservation.dto.ReservationResponse;
 import com.salonapp.reservation.repository.ReservationRepository;
 import com.salonapp.sales.domain.Sale;
 import com.salonapp.sales.dto.SaleResponse;
@@ -78,6 +79,19 @@ public class CustomerSummaryService {
         }
         Pageable unsorted = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize());
         return PageResponse.from(saleRepository.findVisitsByCustomer(customerId, unsorted).map(SaleResponse::from));
+    }
+
+    /**
+     * 고객의 "다음 예약": 예약됨 상태인 예약 전부를 시작 시각 순으로. 개수 제한은 없다(보통 0~2건).
+     * 시각이 지났지만 처리 안 된 예약도 들어간다.
+     */
+    public List<ReservationResponse> upcomingReservations(Long customerId) {
+        if (!customerRepository.existsById(customerId)) {
+            throw new NotFoundException("고객을 찾을 수 없습니다. id=" + customerId);
+        }
+        return reservationRepository.findBookedByCustomer(customerId).stream()
+                .map(ReservationResponse::from)
+                .toList();
     }
 
     /** 상태별 건수 목록에서 한 상태의 건수. 그 상태의 예약이 없으면 줄이 없으므로 0이다. */

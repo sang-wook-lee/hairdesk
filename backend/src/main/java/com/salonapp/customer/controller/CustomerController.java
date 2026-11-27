@@ -6,6 +6,7 @@ import com.salonapp.customer.dto.CustomerResponse;
 import com.salonapp.customer.dto.CustomerSummaryResponse;
 import com.salonapp.customer.service.CustomerService;
 import com.salonapp.customer.service.CustomerSummaryService;
+import com.salonapp.reservation.dto.ReservationResponse;
 import com.salonapp.sales.dto.SaleResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -26,6 +27,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.net.URI;
+import java.util.List;
 
 /**
  * 고객 카드 API.
@@ -36,6 +38,7 @@ import java.net.URI;
  * PUT  /api/customers/{id}                   수정
  * GET  /api/customers/{id}/summary           요약 (방문 횟수, 총 결제액, 첫·최근 방문일, 최근 시술 등)
  * GET  /api/customers/{id}/visits            방문 이력 (매출 기록, 최신순, 페이징)
+ * GET  /api/customers/{id}/upcoming-reservations  다음 예약 (예약됨 상태 전부, 시간순)
  *
  * 삭제 API는 아직 없다. 개인정보 파기 정책을 정한 뒤 추가한다. (ADR 0002)
  */
@@ -87,6 +90,14 @@ public class CustomerController {
             @ParameterObject @PageableDefault(size = 20) Pageable pageable
     ) {
         return customerSummaryService.visits(id, pageable);
+    }
+
+    @Operation(summary = "고객의 다음 예약",
+            description = "예약됨 상태인 예약 전부를 시작 시각 순으로(개수 제한 없음). 시각이 지났지만 처리 안 된 예약도 포함. "
+                    + "없으면 빈 목록, 없는 고객은 404")
+    @GetMapping("/{id}/upcoming-reservations")
+    public List<ReservationResponse> upcomingReservations(@PathVariable Long id) {
+        return customerSummaryService.upcomingReservations(id);
     }
 
     @Operation(summary = "고객 수정")
